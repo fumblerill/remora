@@ -1,5 +1,6 @@
 import "./globals.css";
 import LayoutWrapper from "../components/layout/LayoutWrapper";
+import ClientProviders from "../components/layout/ClientProviders";
 
 export const metadata = {
   title: "Remora",
@@ -13,8 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ru">
-      <body className="flex h-screen bg-gray-50 text-gray-900">
-        <LayoutWrapper>{children}</LayoutWrapper>
+      <body className="flex h-screen bg-gray-50 text-gray-900 overflow-x-hidden">
+        <LayoutWrapper>
+          <ClientProviders>{children}</ClientProviders>
+        </LayoutWrapper>
       </body>
     </html>
   );

@@ -6,6 +6,7 @@ import Configurator from "@/components/configurator/Configurator";
 import { Layout } from "react-grid-layout";
 import { Upload, Table, BarChart3 } from "lucide-react";
 import FileUploadModal from "@/components/ui/FileUploadModal";
+import { errorToast, successToast } from "@/lib/toast";
 
 type Widget = {
   id: string;
@@ -13,13 +14,23 @@ type Widget = {
   layout: Layout;
 };
 
+type FileData = {
+  columns: string[];
+  rows: string[][];
+};
+
 export default function ConfiguratorPage() {
   const [widgets, setWidgets] = useState<Widget[]>([]);
+  const [fileData, setFileData] = useState<FileData | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
 
   const addWidget = (type: "table" | "chart") => {
-    const id = Date.now().toString();
+    if (type === "table" && !fileData) {
+      errorToast("Сначала загрузите файл");
+      return;
+    }
 
+    const id = Date.now().toString();
     const index = widgets.length;
     const x = (index % 2) * 6;
     const y = Math.floor(index / 2) * 12;
@@ -74,7 +85,7 @@ export default function ConfiguratorPage() {
 
         {/* Workspace */}
         <main className="flex-1 bg-white shadow-md rounded-lg p-4 border">
-          <Configurator widgets={widgets} />
+          <Configurator widgets={widgets} fileData={fileData} setWidgets={setWidgets} />
         </main>
       </div>
 
@@ -83,8 +94,10 @@ export default function ConfiguratorPage() {
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
         onUploadComplete={(data) => {
-          console.log("Файл загружен из конфигуратора:", data);
-          // тут позже можно будет обновлять state с данными
+          console.log("Файл загружен:", data);
+          setFileData(data);
+          setWidgets([]); // очищаем старые виджеты
+          successToast("Файл успешно загружен");
         }}
       />
     </div>

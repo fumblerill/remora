@@ -44,7 +44,7 @@ async fn upload(mut multipart: Multipart) -> Json<UploadResponse> {
                     .map(|s| s.to_string())
                     .collect();
 
-                for record in rdr.records().take(10) {
+                for record in rdr.records() {
                     rows.push(record.unwrap().iter().map(|s| s.to_string()).collect());
                 }
             } else if filename.ends_with(".xlsx") {
@@ -61,7 +61,7 @@ async fn upload(mut multipart: Multipart) -> Json<UploadResponse> {
                     if let Some(first_row) = range.rows().next() {
                         columns = first_row.iter().map(|c| c.to_string()).collect();
                     }
-                    for row in range.rows().skip(1).take(10) {
+                    for row in range.rows().skip(1) {
                         rows.push(row.iter().map(|c| c.to_string()).collect());
                     }
                 }

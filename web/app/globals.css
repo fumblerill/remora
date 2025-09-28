@@ -2,6 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  @apply bg-gray-50 text-gray-900;
+@keyframes glow-breathe {
+  0%, 100% {
+    width: 12px;
+    box-shadow: inset -8px 0 20px rgba(239, 68, 68, 0.6);
+  }
+  50% {
+    width: 20px;
+    box-shadow: inset -12px 0 28px rgba(239, 68, 68, 1);
+  }
 }
+
+html, body {
+  overflow-x: hidden !important; /* убираем горизонтальный скролл */
+  width: 100% !important;
+  position: relative;
+}
+
+/* anti-select при drag */
+.react-grid-item.react-draggable-dragging,
+.react-grid-item.react-draggable {
+  user-select: none;
+}
+
+/* тащим всегда поверх */
+.react-grid-item.react-draggable-dragging {
+  z-index: 9999 !important;
+}
+
+
+.react-grid-item.react-draggable-dragging {
+  z-index: 9999 !important; /* всегда поверх всего */
+  cursor: grabbing !important; /* ✋ курсор */
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.6); /* красное свечение */
+  border: 2px solid rgba(239, 68, 68, 0.8); /* красный контур */
+  border-radius: 6px;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+
