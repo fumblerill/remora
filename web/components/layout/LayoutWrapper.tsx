@@ -2,7 +2,6 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import Sidebar from "./Sidebar";
 
 export default function LayoutWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -22,12 +21,12 @@ export default function LayoutWrapper({ children }: { children: React.ReactNode 
     );
   }
 
-  // Если это /login → без Sidebar
+  // Если это /login → без header
   if (pathname === "/login") {
     return <main className="flex-1 flex items-center justify-center">{children}</main>;
   }
 
-  // Иначе — обычный layout с Sidebar
+  // Иначе — обычный layout с header
   return (
     <>
       <main className="flex-1 p-6 overflow-y-auto">{children}</main>

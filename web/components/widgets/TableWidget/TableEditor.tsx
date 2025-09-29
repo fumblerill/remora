@@ -1,0 +1,177 @@
+"use client";
+
+import { useState } from "react";
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import type { PivotConfig } from "@/lib/types";
+
+interface TableEditorProps {
+  data: any[];
+  config?: PivotConfig;
+  onConfigChange?: (config: PivotConfig) => void;
+}
+
+export default function TableEditor({ data, config, onConfigChange }: TableEditorProps) {
+  if (!data || data.length === 0) return <div>Нет данных для конфигурации</div>;
+
+  const fields = Object.keys(data[0]);
+
+  const [pivotConfig, setPivotConfig] = useState<PivotConfig>({
+    available: config?.available ?? fields,
+    rows: config?.rows ?? [],
+    cols: config?.cols ?? [],
+    values: config?.values ?? [],
+  });
+
+  const updateConfig = (newConfig: PivotConfig) => {
+    setPivotConfig(newConfig);
+    onConfigChange?.(newConfig);
+  };
+
+  const handleDragEnd = (result: any) => {
+    const { source, destination } = result;
+    if (!destination) return;
+
+    if (source.droppableId === destination.droppableId && source.index === destination.index) {
+      return;
+    }
+
+    const newConfig: PivotConfig = {
+      available: [...pivotConfig.available],
+      rows: [...pivotConfig.rows],
+      cols: [...pivotConfig.cols],
+      values: [...pivotConfig.values],
+    };
+
+    // достаем элемент из source
+    let moved: any;
+    if (source.droppableId === "values") {
+      [moved] = newConfig.values.splice(source.index, 1);
+    } else {
+      const section = (newConfig as any)[source.droppableId] as string[];
+      [moved] = section.splice(source.index, 1);
+    }
+
+    // вставляем в destination
+    if (destination.droppableId === "values") {
+      if (typeof moved === "string") {
+        newConfig.values.splice(destination.index, 0, { field: moved, agg: "sum" as const });
+      } else {
+        newConfig.values.splice(destination.index, 0, moved);
+      }
+    } else {
+      const section = (newConfig as any)[destination.droppableId] as string[];
+      if (typeof moved === "string") {
+        section.splice(destination.index, 0, moved);
+      } else {
+        section.splice(destination.index, 0, moved.field);
+      }
+    }
+
+    updateConfig(newConfig);
+  };
+
+  const removeItem = (section: keyof PivotConfig, index: number) => {
+    const newConfig: PivotConfig = {
+      available: [...pivotConfig.available],
+      rows: [...pivotConfig.rows],
+      cols: [...pivotConfig.cols],
+      values: [...pivotConfig.values],
+    };
+
+    const removed =
+      section === "values"
+        ? newConfig.values.splice(index, 1)[0]
+        : (newConfig[section] as string[]).splice(index, 1)[0];
+
+    // возвращаем обратно в available, если это поле ещё не там
+    const fieldName = typeof removed === "string" ? removed : removed.field;
+    if (!newConfig.available.includes(fieldName)) {
+      newConfig.available.push(fieldName);
+    }
+
+    updateConfig(newConfig);
+  };
+
+  const Section = ({
+    droppableId,
+    title,
+    items,
+  }: {
+    droppableId: keyof PivotConfig;
+    title: string;
+    items: any[];
+  }) => (
+    <div>
+      <h4 className="font-semibold mb-2">{title}</h4>
+      <Droppable droppableId={droppableId}>
+        {(provided) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.droppableProps}
+            className="border rounded p-2 min-h-[80px] bg-gray-50"
+          >
+            {items.length === 0 && <span className="text-gray-400">Перетащи поле сюда</span>}
+            {items.map((item, index) => (
+              <Draggable
+                key={typeof item === "string" ? item : item.field + index}
+                draggableId={typeof item === "string" ? item : item.field + index}
+                index={index}
+              >
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    {...provided.dragHandleProps}
+                    className="flex items-center justify-between px-2 py-1 mb-1 bg-white border rounded shadow-sm"
+                  >
+                    <span>
+                      {typeof item === "string" ? item : `${item.field} (${item.agg})`}
+                    </span>
+                    {droppableId === "values" && typeof item !== "string" ? (
+                      <select
+                        value={item.agg}
+                        onChange={(e) => {
+                          const agg = e.target.value as PivotConfig["values"][0]["agg"];
+                          const updated = [...pivotConfig.values];
+                          updated[index] = { ...item, agg };
+                          updateConfig({ ...pivotConfig, values: updated });
+                        }}
+                        className="ml-2 border rounded px-1 py-0.5 text-sm"
+                      >
+                        <option value="sum">SUM</option>
+                        <option value="count">COUNT</option>
+                        <option value="avg">AVG</option>
+                      </select>
+                    ) : null}
+                    <button
+                      onClick={() => removeItem(droppableId, index)}
+                      className="ml-2 text-xs text-red-500"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <h3 className="font-medium">Конструктор сводной таблицы</h3>
+
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <div className="grid grid-cols-4 gap-4">
+          <Section droppableId="rows" title="Строки" items={pivotConfig.rows} />
+          <Section droppableId="cols" title="Колонки" items={pivotConfig.cols} />
+          <Section droppableId="values" title="Значения" items={pivotConfig.values} />
+          <Section droppableId="available" title="Доступные поля" items={pivotConfig.available} />
+        </div>
+      </DragDropContext>
+    </div>
+  );
+}

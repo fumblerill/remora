@@ -10,6 +10,7 @@
     "format": "biome format --write"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
     "@tanstack/react-table": "^8.21.3",
     "lucide-react": "^0.544.0",
     "next": "15.5.4",
