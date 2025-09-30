@@ -4,6 +4,7 @@ import RGL, { WidthProvider, Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { useState } from "react";
+import TableWidget from "@/components/widgets/TableWidget";
 
 const GridLayout = WidthProvider(RGL);
 
@@ -13,18 +14,13 @@ type Widget = {
   layout: Layout;
 };
 
-type FileData = {
-  columns: string[];
-  rows: string[][];
-};
-
 export default function Configurator({
   widgets,
-  fileData,
+  data,
   setWidgets,
 }: {
   widgets: Widget[];
-  fileData: FileData | null;
+  data: any[] | null;
   setWidgets: (widgets: Widget[]) => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -39,7 +35,7 @@ export default function Configurator({
   };
 
   const handleDrag = (
-    _layout: any,
+    _layout: Layout[],
     oldItem: Layout,
     newItem: Layout,
     _placeholder: any,
@@ -52,11 +48,11 @@ export default function Configurator({
   };
 
   const handleDragStop = (
-    _layout: any,
+    _layout: Layout[],
     oldItem: Layout,
     newItem: Layout,
     _placeholder: any,
-    e: MouseEvent
+    _e: MouseEvent
   ) => {
     if (isOverTrash) {
       setWidgets(widgets.filter((w) => w.id !== oldItem.i));
@@ -65,6 +61,16 @@ export default function Configurator({
     setIsDragging(false);
     document.body.style.overflow = "";
     document.body.style.width = "";
+  };
+
+  // сохраняем размеры/позиции
+  const handleLayoutChange = (newLayout: Layout[]) => {
+    setWidgets(
+      widgets.map((w) => {
+        const updated = newLayout.find((l) => l.i === w.id);
+        return updated ? { ...w, layout: updated } : w;
+      })
+    );
   };
 
   return (
@@ -86,11 +92,13 @@ export default function Configurator({
         rowHeight={30}
         isResizable
         isDraggable
+        draggableHandle=".drag-handle"
         autoSize
         useCSSTransforms={false}
         onDragStart={handleDragStart}
         onDrag={handleDrag}
         onDragStop={handleDragStop}
+        onLayoutChange={handleLayoutChange}
       >
         {widgets.map((w) => (
           <div
@@ -98,32 +106,10 @@ export default function Configurator({
             data-grid={w.layout}
             className="bg-white border shadow rounded p-2 flex flex-col"
           >
+            {/* Контент */}
             {w.type === "table" ? (
-              fileData ? (
-                <div className="flex-1 overflow-auto">
-                  <table className="table-auto border-collapse border border-gray-300 w-full text-sm">
-                    <thead className="sticky top-0 bg-gray-100">
-                      <tr>
-                        {fileData.columns.map((col, idx) => (
-                          <th key={idx} className="border px-2 py-1">
-                            {col}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {fileData.rows.map((row, rIdx) => (
-                        <tr key={rIdx}>
-                          {row.map((cell, cIdx) => (
-                            <td key={cIdx} className="border px-2 py-1">
-                              {cell}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              data && data.length > 0 ? (
+                <TableWidget data={data} />
               ) : (
                 <span className="text-gray-500 m-auto">Нет данных</span>
               )

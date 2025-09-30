@@ -11,26 +11,46 @@ interface TableWidgetProps {
 }
 
 export default function TableWidget({ data, config }: TableWidgetProps) {
-  // если есть данные, берём поля; иначе пустой массив
   const fields = data && data.length > 0 ? Object.keys(data[0]) : [];
 
-  // инициализация конфига: если ничего не передали → всё пустое, кроме available
   const [pivotConfig, setPivotConfig] = useState<PivotConfig>(
     config || { available: fields, rows: [], cols: [], values: [] }
   );
 
-  const [mode, setMode] = useState<"view" | "edit">(config ? "view": "edit");
+  const [mode, setMode] = useState<"view" | "edit">(config ? "view" : "edit");
+  const [title, setTitle] = useState("Table Widget");
+  const [editingTitle, setEditingTitle] = useState(false);
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-center mb-2">
-        <span className="font-semibold">Table Widget</span>
-        <button
-          onClick={() => setMode(mode === "view" ? "edit" : "view")}
-          className="text-sm border px-2 py-1 rounded"
-        >
-          {mode === "view" ? "Редактировать" : "Сохранить"}
-        </button>
+        {editingTitle ? (
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={() => setEditingTitle(false)}
+            autoFocus
+            className="font-semibold border rounded px-1 py-0.5 text-sm"
+          />
+        ) : (
+          <span
+            className="font-semibold cursor-text"
+            onDoubleClick={() => setEditingTitle(true)}
+            title="Двойной клик для редактирования"
+          >
+            {title}
+          </span>
+        )}
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMode(mode === "view" ? "edit" : "view")}
+            className="text-sm border px-2 py-1 rounded"
+          >
+            {mode === "view" ? "Редактировать" : "Сохранить"}
+          </button>
+          <span className="drag-handle cursor-move px-2">⋮⋮</span>
+        </div>
       </div>
 
       <div className="flex-1 overflow-auto">

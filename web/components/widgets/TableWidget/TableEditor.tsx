@@ -159,8 +159,6 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
 
   return (
     <div className="space-y-4">
-      <h3 className="font-medium">Конструктор сводной таблицы</h3>
-
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-4 gap-4">
           <div className="col-span-1">

@@ -14,18 +14,13 @@ type Widget = {
   layout: Layout;
 };
 
-type FileData = {
-  columns: string[];
-  rows: string[][];
-};
-
 export default function ConfiguratorPage() {
   const [widgets, setWidgets] = useState<Widget[]>([]);
-  const [fileData, setFileData] = useState<FileData | null>(null);
+  const [data, setData] = useState<any[] | null>(null);
   const [isModalOpen, setModalOpen] = useState(false);
 
   const addWidget = (type: "table" | "chart") => {
-    if (type === "table" && !fileData) {
+    if (type === "table" && !data) {
       errorToast("Сначала загрузите файл");
       return;
     }
@@ -85,7 +80,7 @@ export default function ConfiguratorPage() {
 
         {/* Workspace */}
         <main className="flex-1 bg-white shadow-md rounded-lg p-4 border">
-          <Configurator widgets={widgets} fileData={fileData} setWidgets={setWidgets} />
+          <Configurator widgets={widgets} data={data} setWidgets={setWidgets} />
         </main>
       </div>
 
@@ -93,10 +88,9 @@ export default function ConfiguratorPage() {
       <FileUploadModal
         isOpen={isModalOpen}
         onClose={() => setModalOpen(false)}
-        onUploadComplete={(data) => {
-          console.log("Файл загружен:", data);
-          setFileData(data);
-          setWidgets([]); // очищаем старые виджеты
+        onUploadComplete={(uploaded) => {
+          setData(uploaded);   // uploaded уже нормализованный массив объектов
+          setWidgets([]);      // очищаем старые виджеты
           successToast("Файл успешно загружен");
         }}
       />
