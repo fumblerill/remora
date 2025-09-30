@@ -6,21 +6,28 @@ export async function handleFileUpload(
     onUploadComplete,
     onClose,
   }: {
-    onUploadComplete?: (data: any) => void;
+    onUploadComplete?: (data: any[]) => void;
     onClose?: () => void;
   } = {}
 ) {
   try {
-    const data = await uploadFile(file);
-    console.log("Файл загружен, preview:", data);
+    const resp = await uploadFile(file);
+    // resp = { columns: string[], rows: string[][] }
 
-    if (onUploadComplete) onUploadComplete(data);
+    const { columns, rows } = resp;
+
+    const normalized = rows.map((r: string[]) =>
+      Object.fromEntries(columns.map((col, i) => [col, r[i] ?? ""]))
+    );
+
+    if (onUploadComplete) onUploadComplete(normalized);
     if (onClose) onClose();
 
-    return data;
+    return normalized;
   } catch (err) {
     console.error(err);
     alert("Не удалось загрузить файл");
     throw err;
   }
 }
+

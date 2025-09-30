@@ -89,4 +89,3 @@ async fn main() {
     let listener = TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
-

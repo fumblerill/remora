@@ -31,7 +31,10 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
     const { source, destination } = result;
     if (!destination) return;
 
-    if (source.droppableId === destination.droppableId && source.index === destination.index) {
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    ) {
       return;
     }
 
@@ -42,51 +45,47 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
       values: [...pivotConfig.values],
     };
 
-    // достаем элемент из source
     let moved: any;
-    if (source.droppableId === "values") {
-      [moved] = newConfig.values.splice(source.index, 1);
+
+    // --- источник ---
+    if (source.droppableId === "available") {
+      moved = pivotConfig.available[source.index];
+    } else if (source.droppableId === "values") {
+      if (destination.droppableId === "available") {
+        // удаление
+        [moved] = newConfig.values.splice(source.index, 1);
+      } else {
+        // копирование
+        moved = pivotConfig.values[source.index];
+      }
     } else {
+      // rows / cols → перенос
       const section = (newConfig as any)[source.droppableId] as string[];
       [moved] = section.splice(source.index, 1);
     }
 
-    // вставляем в destination
+    // --- назначение ---
     if (destination.droppableId === "values") {
       if (typeof moved === "string") {
-        newConfig.values.splice(destination.index, 0, { field: moved, agg: "sum" as const });
+        newConfig.values.splice(destination.index, 0, {
+          field: moved,
+          agg: "sum" as const,
+        });
       } else {
         newConfig.values.splice(destination.index, 0, moved);
       }
-    } else {
+    } else if (destination.droppableId === "rows" || destination.droppableId === "cols") {
       const section = (newConfig as any)[destination.droppableId] as string[];
       if (typeof moved === "string") {
         section.splice(destination.index, 0, moved);
       } else {
         section.splice(destination.index, 0, moved.field);
       }
-    }
-
-    updateConfig(newConfig);
-  };
-
-  const removeItem = (section: keyof PivotConfig, index: number) => {
-    const newConfig: PivotConfig = {
-      available: [...pivotConfig.available],
-      rows: [...pivotConfig.rows],
-      cols: [...pivotConfig.cols],
-      values: [...pivotConfig.values],
-    };
-
-    const removed =
-      section === "values"
-        ? newConfig.values.splice(index, 1)[0]
-        : (newConfig[section] as string[]).splice(index, 1)[0];
-
-    // возвращаем обратно в available, если это поле ещё не там
-    const fieldName = typeof removed === "string" ? removed : removed.field;
-    if (!newConfig.available.includes(fieldName)) {
-      newConfig.available.push(fieldName);
+    } else if (destination.droppableId === "available") {
+      const fieldName = typeof moved === "string" ? moved : moved.field;
+      if (!newConfig.available.includes(fieldName)) {
+        newConfig.available.splice(destination.index, 0, fieldName);
+      }
     }
 
     updateConfig(newConfig);
@@ -104,17 +103,21 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
     <div>
       <h4 className="font-semibold mb-2">{title}</h4>
       <Droppable droppableId={droppableId}>
-        {(provided) => (
+        {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className="border rounded p-2 min-h-[80px] bg-gray-50"
+            className={`border rounded p-2 min-h-[80px] transition-colors ${
+              droppableId === "available" && snapshot.isDraggingOver
+                ? "bg-red-50 border-red-400"
+                : "bg-gray-50"
+            }`}
           >
             {items.length === 0 && <span className="text-gray-400">Перетащи поле сюда</span>}
             {items.map((item, index) => (
               <Draggable
-                key={typeof item === "string" ? item : item.field + index}
-                draggableId={typeof item === "string" ? item : item.field + index}
+                key={`${droppableId}-${typeof item === "string" ? item : item.field}-${index}`}
+                draggableId={`${droppableId}-${typeof item === "string" ? item : item.field}-${index}`}
                 index={index}
               >
                 {(provided) => (
@@ -143,12 +146,6 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
                         <option value="avg">AVG</option>
                       </select>
                     ) : null}
-                    <button
-                      onClick={() => removeItem(droppableId, index)}
-                      className="ml-2 text-xs text-red-500"
-                    >
-                      ✕
-                    </button>
                   </div>
                 )}
               </Draggable>
@@ -166,10 +163,14 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
 
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="grid grid-cols-4 gap-4">
-          <Section droppableId="rows" title="Строки" items={pivotConfig.rows} />
-          <Section droppableId="cols" title="Колонки" items={pivotConfig.cols} />
-          <Section droppableId="values" title="Значения" items={pivotConfig.values} />
-          <Section droppableId="available" title="Доступные поля" items={pivotConfig.available} />
+          <div className="col-span-1">
+            <Section droppableId="available" title="Доступные поля" items={pivotConfig.available} />
+          </div>
+          <div className="col-span-3 grid grid-cols-3 gap-4">
+            <Section droppableId="rows" title="Строки" items={pivotConfig.rows} />
+            <Section droppableId="cols" title="Колонки" items={pivotConfig.cols} />
+            <Section droppableId="values" title="Значения" items={pivotConfig.values} />
+          </div>
         </div>
       </DragDropContext>
     </div>

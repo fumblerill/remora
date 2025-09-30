@@ -35,7 +35,7 @@ export default function Configurator({
   const handleDragStart = () => {
     setIsDragging(true);
     document.body.style.overflow = "hidden";
-    document.body.style.width = `${window.innerWidth}px`; // фиксируем ширину
+    document.body.style.width = `${window.innerWidth}px`;
   };
 
   const handleDrag = (

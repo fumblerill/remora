@@ -19,7 +19,7 @@ export default function TableWidget({ data, config }: TableWidgetProps) {
     config || { available: fields, rows: [], cols: [], values: [] }
   );
 
-  const [mode, setMode] = useState<"view" | "edit">("view");
+  const [mode, setMode] = useState<"view" | "edit">(config ? "view": "edit");
 
   return (
     <div className="flex flex-col h-full">
