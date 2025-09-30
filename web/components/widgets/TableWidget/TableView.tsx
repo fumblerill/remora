@@ -8,89 +8,13 @@ import {
   getSortedRowModel,
   getFilteredRowModel,
   useReactTable,
+  SortingState,
+  ColumnFiltersState,
+  CellContext,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo, useState, useRef, useEffect } from "react";
-
-function MultiSelectFilter({ column }: { column: any }) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Закрываем dropdown при клике вне
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
-
-  // Уникальные значения для чекбоксов
-  const uniqueValues = useMemo(() => {
-    const vals = new Set<string>();
-    column.getFacetedUniqueValues().forEach((_, key) => {
-      vals.add(String(key));
-    });
-    return Array.from(vals).sort();
-  }, [column.getFacetedUniqueValues()]);
-
-  const filterValue: string[] = column.getFilterValue() || [];
-
-  const toggleValue = (val: string) => {
-    if (filterValue.includes(val)) {
-      column.setFilterValue(filterValue.filter((v) => v !== val));
-    } else {
-      column.setFilterValue([...filterValue, val]);
-    }
-  };
-
-  return (
-    <div className="relative w-full" ref={containerRef}>
-      {/* Одно поле ввода (триггер + поиск) */}
-      <input
-        type="text"
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          if (!open) setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        placeholder="Фильтр..."
-        className="w-full border rounded px-1 text-xs"
-      />
-
-      {open && (
-        <div className="absolute mt-1 max-h-48 overflow-auto border rounded bg-white shadow z-20 w-full">
-          {uniqueValues
-            .filter((val) => val.toLowerCase().includes(search.toLowerCase()))
-            .map((val) => (
-              <label
-                key={val}
-                className="flex items-center space-x-1 text-xs px-1 py-0.5 hover:bg-gray-100 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={filterValue.includes(val)}
-                  onChange={() => toggleValue(val)}
-                />
-                <span className="truncate">{val}</span>
-              </label>
-            ))}
-
-          {uniqueValues.length === 0 && (
-            <div className="text-gray-400 text-xs px-2 py-1">Нет значений</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+import { useMemo, useState, useRef } from "react";
+import { ArrowUp, ArrowDown } from "lucide-react";
 
 interface TableViewProps {
   data: any[];
@@ -98,7 +22,11 @@ interface TableViewProps {
   height?: number;
 }
 
-export default function TableView({ data, config, height = 500 }: TableViewProps) {
+export default function TableView({
+  data,
+  config,
+  height = 500,
+}: TableViewProps) {
   if (!data || data.length === 0) return <div>Нет данных</div>;
 
   const { rows, cols, values } = config;
@@ -112,8 +40,7 @@ export default function TableView({ data, config, height = 500 }: TableViewProps
         Object.keys(data[0]).map((key) => ({
           accessorKey: key,
           header: key,
-          filterFn: "multiSelect",
-          cell: (info) => (
+          cell: (info: CellContext<any, unknown>) => (
             <div className="truncate whitespace-nowrap overflow-hidden">
               {String(info.getValue() ?? "")}
             </div>
@@ -140,7 +67,11 @@ export default function TableView({ data, config, height = 500 }: TableViewProps
     grouped[rowKey].push(row);
   }
 
-  const aggregate = (rows: any[], field: string, agg: "sum" | "count" | "avg") => {
+  const aggregate = (
+    rows: any[],
+    field: string,
+    agg: "sum" | "count" | "avg"
+  ) => {
     const vals = rows.map((r) => Number(r[field]) || 0);
     if (agg === "sum") return vals.reduce((a, b) => a + b, 0);
     if (agg === "count") return vals.length;
@@ -178,8 +109,7 @@ export default function TableView({ data, config, height = 500 }: TableViewProps
       ...rows.map((r) => ({
         accessorKey: r,
         header: r,
-        filterFn: "multiSelect",
-        cell: (info) => (
+        cell: (info: CellContext<any, unknown>) => (
           <div className="truncate whitespace-nowrap overflow-hidden">
             {String(info.getValue() ?? "")}
           </div>
@@ -193,8 +123,7 @@ export default function TableView({ data, config, height = 500 }: TableViewProps
           return {
             accessorKey: fieldKey,
             header: fieldKey,
-            filterFn: "multiSelect",
-            cell: (info: any) => (
+            cell: (info: CellContext<any, unknown>) => (
               <div className="truncate whitespace-nowrap overflow-hidden">
                 {String(info.getValue() ?? "")}
               </div>
@@ -221,28 +150,19 @@ function TanStackTable({
   columns: ColumnDef<any>[];
   height: number;
 }) {
-  const [sorting, setSorting] = useState([]);
-  const [columnFilters, setColumnFilters] = useState([]);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
   const table = useReactTable({
     data,
     columns,
-    state: {
-      sorting,
-      columnFilters,
-    },
+    state: { sorting, columnFilters },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     columnResizeMode: "onChange",
-    filterFns: {
-      multiSelect: (row, columnId, filterValue: string[]) => {
-        if (!filterValue || filterValue.length === 0) return true;
-        return filterValue.includes(String(row.getValue(columnId)));
-      },
-    },
   });
 
   const parentRef = useRef<HTMLDivElement>(null);
@@ -250,13 +170,47 @@ function TanStackTable({
   const rowVirtualizer = useVirtualizer({
     count: table.getRowModel().rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 32,
+    estimateSize: () => 32, // фиксированная высота строки
     overscan: 10,
   });
 
   return (
     <div className="border border-gray-300 w-full overflow-hidden">
       <div ref={parentRef} className="overflow-auto" style={{ height }}>
+        {/* Заголовки */}
+        <div className="flex bg-gray-100 font-semibold border-b min-w-max sticky top-0 z-10">
+          {table.getHeaderGroups().map((headerGroup) => (
+            <div key={headerGroup.id} className="flex">
+              {headerGroup.headers.map((header) => (
+                <div
+                  key={header.id}
+                  className="border-r px-2 py-1 truncate whitespace-nowrap overflow-hidden relative"
+                  style={{ width: header.getSize() }}
+                >
+                  <div
+                    onClick={header.column.getToggleSortingHandler()}
+                    className="cursor-pointer select-none flex items-center space-x-1"
+                  >
+                    <span>
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                    </span>
+                    {header.column.getIsSorted() === "asc" && <ArrowUp size={14} />}
+                    {header.column.getIsSorted() === "desc" && <ArrowDown size={14} />}
+                  </div>
+                  
+                  {/* Ресайзер */}
+                  <div
+                    onMouseDown={header.getResizeHandler()}
+                    onTouchStart={header.getResizeHandler()}
+                    className="absolute top-0 right-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-blue-400"
+                  />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Тело таблицы */}
         <div
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
@@ -264,52 +218,12 @@ function TanStackTable({
             position: "relative",
           }}
         >
-          {/* Заголовки */}
-          <div className="flex bg-gray-100 font-semibold border-b min-w-max sticky top-0 z-10">
-            {table.getHeaderGroups().map((headerGroup) => (
-              <div key={headerGroup.id} className="flex">
-                {headerGroup.headers.map((header) => (
-                  <div
-                    key={header.id}
-                    className="border-r px-2 py-1 truncate whitespace-nowrap overflow-hidden relative"
-                    style={{ width: header.getSize() }}
-                  >
-                    <div
-                      onClick={header.column.getToggleSortingHandler()}
-                      className="cursor-pointer select-none flex items-center"
-                    >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                      {{
-                        asc: " 🔼",
-                        desc: " 🔽",
-                      }[header.column.getIsSorted() as string] ?? null}
-                    </div>
-
-                    {/* Мультиселект-фильтр */}
-                    {header.column.getCanFilter() ? (
-                      <MultiSelectFilter column={header.column} />
-                    ) : null}
-
-                    {/* Ресайзер */}
-                    <div
-                      onMouseDown={header.getResizeHandler()}
-                      onTouchStart={header.getResizeHandler()}
-                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-blue-400"
-                    />
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-
-          {/* Виртуализированные строки */}
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const row = table.getRowModel().rows[virtualRow.index];
             return (
               <div
                 key={row.id}
-                ref={virtualRow.measureElement}
-                className="flex border-b min-w-max"
+                className="flex border-b min-w-max h-8"
                 style={{
                   position: "absolute",
                   top: 0,
