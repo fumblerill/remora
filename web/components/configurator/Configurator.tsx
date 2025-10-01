@@ -5,6 +5,7 @@ import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { useState } from "react";
 import TableWidget from "@/components/widgets/TableWidget";
+import WidgetContainer from "../widgets/TableWidget/hooks/WidgetContainer";
 
 const GridLayout = WidthProvider(RGL);
 
@@ -75,7 +76,6 @@ export default function Configurator({
 
   return (
     <div className="h-full w-full bg-gray-50 relative">
-      {/* Зона удаления */}
       {isDragging && (
         <div
           className={`fixed top-0 right-0 h-full w-[12px] z-[10000] pointer-events-none transition-all ${
@@ -99,23 +99,16 @@ export default function Configurator({
         onDrag={handleDrag}
         onDragStop={handleDragStop}
         onLayoutChange={handleLayoutChange}
+        margin={[16, 16]}
+        containerPadding={[16, 16]}
       >
         {widgets.map((w) => (
           <div
             key={w.id}
             data-grid={w.layout}
-            className="bg-white border shadow rounded p-2 flex flex-col"
+            className="bg-white border shadow rounded flex p-3 flex-col h-full"
           >
-            {/* Контент */}
-            {w.type === "table" ? (
-              data && data.length > 0 ? (
-                <TableWidget data={data} />
-              ) : (
-                <span className="text-gray-500 m-auto">Нет данных</span>
-              )
-            ) : (
-              <span className="text-purple-600 font-bold m-auto">📈 График</span>
-            )}
+            <WidgetContainer type={w.type} data={data} />
           </div>
         ))}
       </GridLayout>

@@ -8,9 +8,10 @@ import type { PivotConfig } from "@/lib/types";
 interface TableWidgetProps {
   data: any[];
   config?: PivotConfig;
+  height?: number;
 }
 
-export default function TableWidget({ data, config }: TableWidgetProps) {
+export default function TableWidget({ data, config, height }: TableWidgetProps) {
   const fields = data && data.length > 0 ? Object.keys(data[0]) : [];
 
   const [pivotConfig, setPivotConfig] = useState<PivotConfig>(
@@ -53,15 +54,19 @@ export default function TableWidget({ data, config }: TableWidgetProps) {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-hidden">
         {mode === "view" ? (
-          <TableView data={data} config={pivotConfig} />
+          <div className="h-full overflow-auto">
+            <TableView data={data} config={pivotConfig} height={height ?? 500} />
+          </div>
         ) : (
-          <TableEditor
-            data={data}
-            config={pivotConfig}
-            onConfigChange={setPivotConfig}
-          />
+          <div className="h-full overflow-auto">
+            <TableEditor
+              data={data}
+              config={pivotConfig}
+              onConfigChange={setPivotConfig}
+            />
+          </div>
         )}
       </div>
     </div>

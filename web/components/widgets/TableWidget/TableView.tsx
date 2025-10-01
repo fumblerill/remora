@@ -13,7 +13,7 @@ import {
   CellContext,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { ArrowUp, ArrowDown } from "lucide-react";
 
 interface TableViewProps {
@@ -55,7 +55,6 @@ export default function TableView({
   // ===============================
   // Сводная таблица (pivot)
   // ===============================
-
   const colKeys = cols.length
     ? Array.from(new Set(data.map((row) => cols.map((c) => row[c]).join(" | "))))
     : [""];
@@ -148,7 +147,7 @@ function TanStackTable({
 }: {
   data: any[];
   columns: ColumnDef<any>[];
-  height: number;
+  height?: number;
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -170,47 +169,62 @@ function TanStackTable({
   const rowVirtualizer = useVirtualizer({
     count: table.getRowModel().rows.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 32, // фиксированная высота строки
+    estimateSize: () => 32,
     overscan: 10,
   });
 
   return (
-    <div className="border border-gray-300 w-full overflow-hidden">
+    <div className="border border-gray-300 w-full h-full overflow-hidden">
       <div ref={parentRef} className="overflow-auto" style={{ height }}>
-        {/* Заголовки */}
-        <div className="flex bg-gray-100 font-semibold border-b min-w-max sticky top-0 z-10">
+        {/* фиксированная шапка */}
+        <div
+          className="flex bg-gray-100 font-semibold border-b min-w-max sticky top-0 z-10"
+          style={{ height: 64 }}
+        >
           {table.getHeaderGroups().map((headerGroup) => (
             <div key={headerGroup.id} className="flex">
               {headerGroup.headers.map((header) => (
                 <div
                   key={header.id}
-                  className="border-r px-2 py-1 truncate whitespace-nowrap overflow-hidden relative"
+                  className="border-r px-2 py-1 relative flex flex-col justify-between"
                   style={{ width: header.getSize() }}
                 >
+                  {/* название */}
                   <div
                     onClick={header.column.getToggleSortingHandler()}
-                    className="cursor-pointer select-none flex items-center space-x-1"
+                    className="cursor-pointer select-none flex items-center gap-1 truncate whitespace-nowrap overflow-hidden"
                   >
-                    <span>
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </span>
-                    {header.column.getIsSorted() === "asc" && <ArrowUp size={14} />}
-                    {header.column.getIsSorted() === "desc" && <ArrowDown size={14} />}
+                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {{
+                      asc: <ArrowUp size={14} />,
+                      desc: <ArrowDown size={14} />,
+                    }[header.column.getIsSorted() as string] ?? null}
                   </div>
-                  
-                  {/* Ресайзер */}
+
+                  {/* фильтр */}
+                  {header.column.getCanFilter() && (
+                    <input
+                      type="text"
+                      value={(header.column.getFilterValue() as string) ?? ""}
+                      onChange={(e) => header.column.setFilterValue(e.target.value)}
+                      placeholder="Фильтр..."
+                      className="w-full border rounded px-1 text-xs mt-1"
+                    />
+                  )}
+
+                  {/* ресайзер */}
                   <div
                     onMouseDown={header.getResizeHandler()}
                     onTouchStart={header.getResizeHandler()}
                     className="absolute top-0 right-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-blue-400"
                   />
-                </div>
+                </div> 
               ))}
             </div>
           ))}
         </div>
 
-        {/* Тело таблицы */}
+        {/* тело таблицы */}
         <div
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
@@ -223,13 +237,15 @@ function TanStackTable({
             return (
               <div
                 key={row.id}
-                className="flex border-b min-w-max h-8"
+                ref={(el) => {
+                  if (el) rowVirtualizer.measureElement(el);
+                }}
+                className="flex border-b min-w-max"
                 style={{
                   position: "absolute",
-                  top: 0,
+                  top: virtualRow.start,
                   left: 0,
                   width: "100%",
-                  transform: `translateY(${virtualRow.start}px)`,
                 }}
               >
                 {row.getVisibleCells().map((cell) => (
