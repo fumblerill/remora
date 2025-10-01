@@ -52,14 +52,11 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
       moved = pivotConfig.available[source.index];
     } else if (source.droppableId === "values") {
       if (destination.droppableId === "available") {
-        // удаление
         [moved] = newConfig.values.splice(source.index, 1);
       } else {
-        // копирование
         moved = pivotConfig.values[source.index];
       }
     } else {
-      // rows / cols → перенос
       const section = (newConfig as any)[source.droppableId] as string[];
       [moved] = section.splice(source.index, 1);
     }
@@ -100,20 +97,28 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
     title: string;
     items: any[];
   }) => (
-    <div>
-      <h4 className="font-semibold mb-2">{title}</h4>
+    <div className="min-w-0">
+      <h4 className="font-semibold mb-2 truncate overflow-hidden whitespace-nowrap">
+        {title}
+      </h4>
       <Droppable droppableId={droppableId}>
         {(provided, snapshot) => (
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={`border rounded p-2 min-h-[80px] transition-colors ${
+            className={`border rounded p-2 min-h-[80px] min-w-0 transition-colors ${
               droppableId === "available" && snapshot.isDraggingOver
                 ? "bg-red-50 border-red-400"
                 : "bg-gray-50"
             }`}
           >
-            {items.length === 0 && <span className="text-gray-400">Перетащи поле сюда</span>}
+            {items.length === 0 && (
+              <div className="w-full min-w-0">
+                <span className="block text-gray-400 truncate overflow-hidden whitespace-nowrap">
+                  Перетащи поле сюда
+                </span>
+              </div>
+            )}
             {items.map((item, index) => (
               <Draggable
                 key={`${droppableId}-${typeof item === "string" ? item : item.field}-${index}`}
@@ -125,9 +130,9 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
-                    className="flex items-center justify-between px-2 py-1 mb-1 bg-white border rounded shadow-sm"
+                    className="flex items-center justify-between px-2 py-1 mb-1 bg-white border rounded shadow-sm min-w-0"
                   >
-                    <span>
+                    <span className="truncate overflow-hidden whitespace-nowrap max-w-full">
                       {typeof item === "string" ? item : `${item.field} (${item.agg})`}
                     </span>
                     {droppableId === "values" && typeof item !== "string" ? (
@@ -160,11 +165,11 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
   return (
     <div className="space-y-4">
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-4 gap-4">
-          <div className="col-span-1">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div className="sm:col-span-1">
             <Section droppableId="available" title="Доступные поля" items={pivotConfig.available} />
           </div>
-          <div className="col-span-3 grid grid-cols-3 gap-4">
+          <div className="sm:col-span-3 grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Section droppableId="rows" title="Строки" items={pivotConfig.rows} />
             <Section droppableId="cols" title="Колонки" items={pivotConfig.cols} />
             <Section droppableId="values" title="Значения" items={pivotConfig.values} />

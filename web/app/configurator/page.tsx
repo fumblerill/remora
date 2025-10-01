@@ -4,7 +4,7 @@ import { useState } from "react";
 import Header from "@/components/layout/Header";
 import Configurator from "@/components/configurator/Configurator";
 import { Layout } from "react-grid-layout";
-import { Upload, Table, BarChart3 } from "lucide-react";
+import { Upload, Table, BarChart3, Save } from "lucide-react";
 import FileUploadModal from "@/components/ui/FileUploadModal";
 import { errorToast, successToast } from "@/lib/toast";
 
@@ -35,13 +35,23 @@ export default function ConfiguratorPage() {
       {
         id,
         type,
-        layout: { i: id, x, y, w: 6, h: 12 },
+        layout: {
+          i: id,
+          x,
+          y,
+          w: 6,
+          h: 12,
+          minW: 3,   // минимум 3 колонки
+          minH: 6,   // минимум 6 строк
+          maxW: 12,  // максимум на всю ширину
+          maxH: 18,  // максимум по высоте
+        },
       },
     ]);
   };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col h-full">
       <Header />
 
       <div className="flex flex-1 mt-4 gap-4">
@@ -74,6 +84,14 @@ export default function ConfiguratorPage() {
             >
               <BarChart3 size={16} />
               Добавить график
+            </button>
+
+            <button
+              onClick={() => ""}
+              className="flex items-center gap-2 px-3 py-2 border border-brand text-brand rounded hover:bg-brand hover:text-white transition"
+            >
+              <Save size={16} />
+              Сохранить
             </button>
           </aside>
         </div>

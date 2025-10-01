@@ -1,7 +1,9 @@
+//TODO Сделать WidgetContainer более универсальным — через словарь (widgetsMap[type]) вместо if/switch
 "use client";
 
 import { useRef, useLayoutEffect, useState } from "react";
 import TableWidget from "@/components/widgets/TableWidget";
+import ChartWidget from "@/components/widgets/ChartWidget";
 
 export default function WidgetContainer({
   type,
@@ -39,8 +41,14 @@ export default function WidgetContainer({
         ) : (
           <span className="text-gray-500 m-auto">Нет данных</span>
         )
+      ) : type === "chart" ? (
+        data && data.length > 0 ? (
+          <ChartWidget data={data} height={height} />
+        ) : (
+          <span className="text-gray-500 m-auto">Нет данных</span>
+        )
       ) : (
-        <span className="text-purple-600 font-bold m-auto">📈 График</span>
+        <span className="text-red-500 m-auto">❓ Неизвестный виджет</span>
       )}
     </div>
   );

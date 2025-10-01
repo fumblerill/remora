@@ -4,8 +4,7 @@ import RGL, { WidthProvider, Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { useState } from "react";
-import TableWidget from "@/components/widgets/TableWidget";
-import WidgetContainer from "../widgets/TableWidget/hooks/WidgetContainer";
+import WidgetContainer from "../widgets/hooks/WidgetContainer";
 
 const GridLayout = WidthProvider(RGL);
 
@@ -22,12 +21,12 @@ export default function Configurator({
 }: {
   widgets: Widget[];
   data: any[] | null;
-  setWidgets: (widgets: Widget[]) => void;
+  setWidgets: React.Dispatch<React.SetStateAction<Widget[]>>;
 }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isOverTrash, setIsOverTrash] = useState(false);
 
-  const TRASH_WIDTH = 40;
+  const TRASH_WIDTH = 80;
 
   const handleDragStart = () => {
     setIsDragging(true);
@@ -37,38 +36,43 @@ export default function Configurator({
 
   const handleDrag = (
     _layout: Layout[],
-    oldItem: Layout,
-    newItem: Layout,
+    _oldItem: Layout,
+    _newItem: Layout,
     _placeholder: any,
     e: MouseEvent
   ) => {
-    if (!e) return;
-    const mouseX = e.clientX;
-    const winW = window.innerWidth;
-    setIsOverTrash(mouseX >= winW - TRASH_WIDTH);
+    if (e) {
+      const winW = window.innerWidth;
+      setIsOverTrash(e.clientX >= winW - TRASH_WIDTH);
+    }
   };
 
   const handleDragStop = (
     _layout: Layout[],
     oldItem: Layout,
-    newItem: Layout,
+    _newItem: Layout,
     _placeholder: any,
-    _e: MouseEvent
+    e: MouseEvent | undefined
   ) => {
-    if (isOverTrash) {
-      setWidgets(widgets.filter((w) => w.id !== oldItem.i));
+    const idToRemove = String(oldItem.i);
+    const winW = window.innerWidth;
+
+    const shouldRemove = (e && e.clientX >= winW - TRASH_WIDTH) || isOverTrash;
+
+    if (shouldRemove) {
+      setWidgets((prev) => prev.filter((w) => String(w.id) !== idToRemove));
     }
+
     setIsOverTrash(false);
     setIsDragging(false);
     document.body.style.overflow = "";
     document.body.style.width = "";
   };
 
-  // сохраняем размеры/позиции
   const handleLayoutChange = (newLayout: Layout[]) => {
-    setWidgets(
-      widgets.map((w) => {
-        const updated = newLayout.find((l) => l.i === w.id);
+    setWidgets((prev) =>
+      prev.map((w) => {
+        const updated = newLayout.find((l) => l.i === String(w.id));
         return updated ? { ...w, layout: updated } : w;
       })
     );
@@ -78,16 +82,17 @@ export default function Configurator({
     <div className="h-full w-full bg-gray-50 relative">
       {isDragging && (
         <div
-          className={`fixed top-0 right-0 h-full w-[12px] z-[10000] pointer-events-none transition-all ${
+          className={`fixed top-0 right-0 h-full w-[${TRASH_WIDTH}px] z-[10000] pointer-events-none transition-all ${
             isOverTrash
-              ? "animate-[glow-breathe_1.5s_ease-in-out_infinite]"
-              : ""
+              ? "animate-[glow-breathe_1.5s_ease-in-out_infinite] bg-red-200/40"
+              : "bg-gray-200/10"
           }`}
         />
       )}
 
       <GridLayout
         className="layout"
+        layout={widgets.map((w) => ({ ...w.layout, i: String(w.id) }))}
         cols={12}
         rowHeight={30}
         isResizable
@@ -100,12 +105,12 @@ export default function Configurator({
         onDragStop={handleDragStop}
         onLayoutChange={handleLayoutChange}
         margin={[16, 16]}
-        containerPadding={[16, 16]}
+        containerPadding={[0, 0]}
       >
         {widgets.map((w) => (
           <div
             key={w.id}
-            data-grid={w.layout}
+            data-grid={{ ...w.layout, i: String(w.id) }}
             className="bg-white border shadow rounded flex p-3 flex-col h-full"
           >
             <WidgetContainer type={w.type} data={data} />
