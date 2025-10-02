@@ -13,7 +13,7 @@ import {
   CellContext,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef } from "react";
 import { ArrowUp, ArrowDown } from "lucide-react";
 
 interface TableViewProps {
@@ -32,9 +32,16 @@ export default function TableView({
   const { rows, cols, values } = config;
 
   // ===============================
-  // Сырые данные
+  // нормализуем values → всегда объекты { field, agg }
   // ===============================
-  if (rows.length === 0 && cols.length === 0 && values.length === 0) {
+  const normValues = values.map((v: any) =>
+    typeof v === "string" ? { field: v, agg: "sum" as const } : { field: v.field, agg: v.agg ?? "sum" }
+  );
+
+  // ===============================
+  // Сырые данные (без pivot)
+  // ===============================
+  if (rows.length === 0 && cols.length === 0 && normValues.length === 0) {
     const columns = useMemo<ColumnDef<any>[]>(
       () =>
         Object.keys(data[0]).map((key) => ({
@@ -71,13 +78,18 @@ export default function TableView({
     field: string,
     agg: "sum" | "count" | "avg"
   ) => {
+    if (agg === "count") {
+      // просто считаем количество строк, где поле не пустое
+      return rows.filter((r) => r[field] !== undefined && r[field] !== null && r[field] !== "").length;
+    }
+
     const vals = rows
-    .map((r) => Number(r[field]))
-    .filter((v) => !isNaN(v));
+      .map((r) => Number(r[field]))
+      .filter((v) => !isNaN(v));
+
     if (agg === "sum") return vals.reduce((a, b) => a + b, 0);
-    if (agg === "count") return vals.length;
-    if (agg === "avg")
-      return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+    if (agg === "avg") return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+
     return 0;
   };
 
@@ -89,7 +101,7 @@ export default function TableView({
     });
 
     colKeys.forEach((colKey) => {
-      values.forEach((v) => {
+      normValues.forEach((v) => {
         const fieldKey = colKey
           ? `${colKey} | ${v.field} (${v.agg})`
           : `${v.field} (${v.agg})`;
@@ -117,7 +129,7 @@ export default function TableView({
         ),
       })),
       ...colKeys.flatMap((colKey) =>
-        values.map((v) => {
+        normValues.map((v) => {
           const fieldKey = colKey
             ? `${colKey} | ${v.field} (${v.agg})`
             : `${v.field} (${v.agg})`;
@@ -133,14 +145,14 @@ export default function TableView({
         })
       ),
     ],
-    [rows, colKeys, values]
+    [rows, colKeys, normValues]
   );
 
   return <TanStackTable data={pivotRows} columns={pivotColumns} height={height} />;
 }
 
 // ===============================
-// Универсальная таблица
+// Универсальная таблица (TanStack + virtual scroll)
 // ===============================
 function TanStackTable({
   data,

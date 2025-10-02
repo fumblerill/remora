@@ -41,9 +41,11 @@ export default function ChartView({ data, config, height = 400 }: ChartViewProps
   if (!config.xAxis || config.yAxis.length === 0) return <div>Настрой график</div>;
 
   const aggregate = (rows: any[], field: string, agg: "sum" | "count" | "avg") => {
-    const vals = rows.map((r) => Number(r[field]) || 0);
+    if (agg === "count") {
+      return rows.filter((r) => r[field] !== undefined && r[field] !== null && r[field] !== "").length;
+    }
+    const vals = rows.map((r) => Number(r[field])).filter((v) => !isNaN(v));
     if (agg === "sum") return vals.reduce((a, b) => a + b, 0);
-    if (agg === "count") return vals.length;
     if (agg === "avg") return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
     return 0;
   };
@@ -65,7 +67,7 @@ export default function ChartView({ data, config, height = 400 }: ChartViewProps
   };
 
   // ======================
-  // Pie (как раньше)
+  // Pie
   // ======================
   if (config.type === "pie") {
     const yField = config.yAxis[0];
@@ -75,18 +77,23 @@ export default function ChartView({ data, config, height = 400 }: ChartViewProps
       const grouped: Record<string, any[]> = {};
       for (const row of data) {
         const key = row[config.xAxis as string];
+        if (!key) continue; // отрезаем пустые категории
         if (!grouped[key]) grouped[key] = [];
         grouped[key].push(row);
       }
-      chartData = Object.entries(grouped).map(([key, rows]) => ({
-        name: key,
-        value: aggregate(rows, yField.field, yField.agg ?? "sum"),
-      }));
+      chartData = Object.entries(grouped)
+        .map(([key, rows]) => ({
+          name: key,
+          value: aggregate(rows, yField.field, yField.agg ?? "sum"),
+        }))
+        .filter((d) => d.value !== 0);
     } else {
-      chartData = data.map((row) => ({
-        name: row[config.xAxis as string],
-        value: Number(row[yField.field]) || 0,
-      }));
+      chartData = data
+        .map((row) => ({
+          name: row[config.xAxis as string],
+          value: Number(row[yField.field]) || 0,
+        }))
+        .filter((d) => d.name && d.value !== 0);
     }
 
     return (
@@ -132,28 +139,32 @@ export default function ChartView({ data, config, height = 400 }: ChartViewProps
   }
 
   // ======================
-  // Bar → pivot-логика
+  // Bar
   // ======================
   if (config.type === "bar") {
-    // агрегируем: каждая строка = категория
     let chartData: any[] = [];
 
     if (config.useAggregation) {
       const grouped: Record<string, any[]> = {};
       for (const row of data) {
         const key = row[config.xAxis as string];
+        if (!key) continue;
         if (!grouped[key]) grouped[key] = [];
         grouped[key].push(row);
       }
-      chartData = Object.entries(grouped).map(([key, rows]) => ({
-        category: key,
-        value: aggregate(rows, config.yAxis[0].field, config.yAxis[0].agg ?? "sum"),
-      }));
+      chartData = Object.entries(grouped)
+        .map(([key, rows]) => ({
+          category: key,
+          value: aggregate(rows, config.yAxis[0].field, config.yAxis[0].agg ?? "sum"),
+        }))
+        .filter((d) => d.value !== 0);
     } else {
-      chartData = data.map((row) => ({
-        category: row[config.xAxis as string],
-        value: Number(row[config.yAxis[0].field]) || 0,
-      }));
+      chartData = data
+        .map((row) => ({
+          category: row[config.xAxis as string],
+          value: Number(row[config.yAxis[0].field]) || 0,
+        }))
+        .filter((d) => d.category && d.value !== 0);
     }
 
     const categories = chartData.map((d) => d.category);
@@ -230,7 +241,7 @@ export default function ChartView({ data, config, height = 400 }: ChartViewProps
   }
 
   // ======================
-  // Line → классическая логика
+  // Line
   // ======================
   if (config.type === "line") {
     let chartData: any[] = [];
@@ -239,25 +250,30 @@ export default function ChartView({ data, config, height = 400 }: ChartViewProps
       const grouped: Record<string, any[]> = {};
       for (const row of data) {
         const key = row[config.xAxis as string];
+        if (!key) continue;
         if (!grouped[key]) grouped[key] = [];
         grouped[key].push(row);
       }
 
-      chartData = Object.entries(grouped).map(([key, rows]) => {
-        const obj: Record<string, any> = { name: key };
-        for (const y of config.yAxis) {
-          obj[y.field] = aggregate(rows, y.field, y.agg ?? "sum");
-        }
-        return obj;
-      });
+      chartData = Object.entries(grouped)
+        .map(([key, rows]) => {
+          const obj: Record<string, any> = { name: key };
+          for (const y of config.yAxis) {
+            obj[y.field] = aggregate(rows, y.field, y.agg ?? "sum");
+          }
+          return obj;
+        })
+        .filter((d) => d.name && Object.values(d).some((v) => v !== 0));
     } else {
-      chartData = data.map((row) => {
-        const obj: Record<string, any> = { name: row[config.xAxis as string] };
-        for (const y of config.yAxis) {
-          obj[y.field] = Number(row[y.field]) || 0;
-        }
-        return obj;
-      });
+      chartData = data
+        .map((row) => {
+          const obj: Record<string, any> = { name: row[config.xAxis as string] };
+          for (const y of config.yAxis) {
+            obj[y.field] = Number(row[y.field]) || 0;
+          }
+          return obj;
+        })
+        .filter((d) => d.name && Object.values(d).some((v) => v !== 0));
     }
 
     return (

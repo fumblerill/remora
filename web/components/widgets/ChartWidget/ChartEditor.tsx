@@ -11,7 +11,7 @@ export interface ChartConfig {
   xLabel: string;
   yLabel: string;
   useAggregation: boolean;
-  pieShowPercent?: boolean; // 🔥 новый флаг
+  pieShowPercent?: boolean;
 }
 
 interface ChartEditorProps {
@@ -43,14 +43,14 @@ export default function ChartEditor({ data, config, onConfigChange }: ChartEdito
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Тип графика */}
       <div>
-        <label className="font-semibold">Тип графика</label>
+        <label className="block font-semibold mb-2">Тип графика</label>
         <select
           value={chartConfig.type}
           onChange={(e) => updateConfig({ type: e.target.value as ChartConfig["type"] })}
-          className="ml-2 border rounded px-2 py-1"
+          className="w-full border rounded px-2 py-1"
         >
           <option value="bar">Столбчатая</option>
           <option value="line">Линейная</option>
@@ -59,21 +59,22 @@ export default function ChartEditor({ data, config, onConfigChange }: ChartEdito
       </div>
 
       {/* Оси */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-6">
         <div>
-          <label className="font-semibold block mb-1">Ось X (Категории)</label>
-          <select
-            value={chartConfig.xAxis ?? ""}
-            onChange={(e) => updateConfig({ xAxis: e.target.value || null })}
-            className="w-full border rounded px-2 py-1"
-          >
-            <option value="">—</option>
+          <label className="block font-semibold mb-2">Ось X (Категории)</label>
+          <div className="space-y-1 max-h-32 overflow-y-auto border rounded p-2">
             {fields.map((f) => (
-              <option key={f} value={f}>
+              <label key={f} className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="x-axis"
+                  checked={chartConfig.xAxis === f}
+                  onChange={() => updateConfig({ xAxis: f })}
+                />
                 {f}
-              </option>
+              </label>
             ))}
-          </select>
+          </div>
           <input
             type="text"
             placeholder="Подпись оси X"
@@ -84,26 +85,27 @@ export default function ChartEditor({ data, config, onConfigChange }: ChartEdito
         </div>
 
         <div>
-          <label className="font-semibold block mb-1">Ось Y (Показатели)</label>
-          <select
-            multiple
-            value={chartConfig.yAxis.map((y) => y.field)}
-            onChange={(e) => {
-              const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
-              const newY = selected.map((field) => {
-                const existing = chartConfig.yAxis.find((y) => y.field === field);
-                return existing || { field, agg: "sum" as const };
-              });
-              updateConfig({ yAxis: newY });
-            }}
-            className="w-full border rounded px-2 py-1 h-32"
-          >
+          <label className="block font-semibold mb-2">Ось Y (Показатели)</label>
+          <div className="space-y-1 max-h-32 overflow-y-auto border rounded p-2">
             {fields.map((f) => (
-              <option key={f} value={f}>
+              <label key={f} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={chartConfig.yAxis.some((y) => y.field === f)}
+                  onChange={(e) => {
+                    let newY = [...chartConfig.yAxis];
+                    if (e.target.checked) {
+                      newY.push({ field: f, agg: "sum" as const });
+                    } else {
+                      newY = newY.filter((y) => y.field !== f);
+                    }
+                    updateConfig({ yAxis: newY });
+                  }}
+                />
                 {f}
-              </option>
+              </label>
             ))}
-          </select>
+          </div>
           <input
             type="text"
             placeholder="Подпись оси Y"
@@ -114,83 +116,76 @@ export default function ChartEditor({ data, config, onConfigChange }: ChartEdito
         </div>
       </div>
 
-      {/* Переключатель агрегации */}
+      {/* Агрегация */}
       <div>
-        <label>
+        <label className="flex items-center gap-2 mb-2">
           <input
             type="checkbox"
             checked={chartConfig.useAggregation}
             onChange={(e) => updateConfig({ useAggregation: e.target.checked })}
-          />{" "}
-          Использовать агрегацию (сумма, среднее, количество)
+          />
+          <span className="font-semibold">Использовать агрегацию</span>
         </label>
+        {chartConfig.useAggregation && chartConfig.yAxis.length > 0 && (
+          <div className="space-y-2">
+            {chartConfig.yAxis.map((y, idx) => (
+              <div key={y.field} className="flex items-center gap-2">
+                <span className="text-sm flex-1">{y.field}</span>
+                <select
+                  value={y.agg ?? "sum"}
+                  onChange={(e) => {
+                    const newY = [...chartConfig.yAxis];
+                    newY[idx] = { ...y, agg: e.target.value as "sum" | "count" | "avg" };
+                    updateConfig({ yAxis: newY });
+                  }}
+                  className="border rounded px-1 py-0.5 text-sm"
+                >
+                  <option value="sum">Сумма</option>
+                  <option value="count">Количество</option>
+                  <option value="avg">Среднее</option>
+                </select>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
-      {/* Агрегации для каждого Y */}
-      {chartConfig.useAggregation && chartConfig.yAxis.length > 0 && (
-        <div>
-          <label className="font-semibold block mb-1">Агрегация показателей</label>
-          {chartConfig.yAxis.map((y, idx) => (
-            <div key={y.field} className="flex items-center gap-2 mb-1">
-              <span className="text-sm">{y.field}</span>
-              <select
-                value={y.agg ?? "sum"}
-                onChange={(e) => {
-                  const newY = [...chartConfig.yAxis];
-                  newY[idx] = { ...y, agg: e.target.value as "sum" | "count" | "avg" };
-                  updateConfig({ yAxis: newY });
-                }}
-                className="border rounded px-1 py-0.5 text-sm"
-              >
-                <option value="sum">Сумма</option>
-                <option value="count">Количество</option>
-                <option value="avg">Среднее</option>
-              </select>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Легенда */}
       <div>
-        <label>
+        <label className="flex items-center gap-2 mb-2">
           <input
             type="checkbox"
             checked={chartConfig.legend}
             onChange={(e) => updateConfig({ legend: e.target.checked })}
-          />{" "}
-          Показать легенду
+          />
+          <span className="font-semibold">Показать легенду</span>
         </label>
-      </div>
-
-      {chartConfig.legend && (
-        <div className="mt-2">
-          <label className="font-semibold block mb-1">Расположение легенды</label>
+        {chartConfig.legend && (
           <select
             value={chartConfig.legendPosition}
             onChange={(e) =>
               updateConfig({ legendPosition: e.target.value as ChartConfig["legendPosition"] })
             }
-            className="border rounded px-2 py-1"
+            className="w-full border rounded px-2 py-1"
           >
             <option value="right">Справа</option>
             <option value="left">Слева</option>
             <option value="top">Сверху</option>
             <option value="bottom">Снизу</option>
           </select>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* 🔥 Чекбокс только для Pie */}
+      {/* Pie only */}
       {chartConfig.type === "pie" && (
-        <div className="mt-2">
-          <label>
+        <div>
+          <label className="flex items-center gap-2">
             <input
               type="checkbox"
               checked={chartConfig.pieShowPercent ?? false}
               onChange={(e) => updateConfig({ pieShowPercent: e.target.checked })}
-            />{" "}
-            Проценты вместо значений
+            />
+            <span className="font-semibold">Проценты вместо значений</span>
           </label>
         </div>
       )}
