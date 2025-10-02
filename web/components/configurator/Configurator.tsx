@@ -26,7 +26,7 @@ export default function Configurator({
   const [isDragging, setIsDragging] = useState(false);
   const [isOverTrash, setIsOverTrash] = useState(false);
 
-  const TRASH_WIDTH = 80;
+  const TRASH_WIDTH = 30;
 
   const handleDragStart = () => {
     setIsDragging(true);
