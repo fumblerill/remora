@@ -11,6 +11,7 @@ export interface ChartConfig {
   xLabel: string;
   yLabel: string;
   useAggregation: boolean;
+  pieShowPercent?: boolean; // 🔥 новый флаг
 }
 
 interface ChartEditorProps {
@@ -32,6 +33,7 @@ export default function ChartEditor({ data, config, onConfigChange }: ChartEdito
     xLabel: config?.xLabel ?? "",
     yLabel: config?.yLabel ?? "",
     useAggregation: config?.useAggregation ?? false,
+    pieShowPercent: config?.pieShowPercent ?? false,
   });
 
   const updateConfig = (partial: Partial<ChartConfig>) => {
@@ -176,6 +178,20 @@ export default function ChartEditor({ data, config, onConfigChange }: ChartEdito
             <option value="top">Сверху</option>
             <option value="bottom">Снизу</option>
           </select>
+        </div>
+      )}
+
+      {/* 🔥 Чекбокс только для Pie */}
+      {chartConfig.type === "pie" && (
+        <div className="mt-2">
+          <label>
+            <input
+              type="checkbox"
+              checked={chartConfig.pieShowPercent ?? false}
+              onChange={(e) => updateConfig({ pieShowPercent: e.target.checked })}
+            />{" "}
+            Проценты вместо значений
+          </label>
         </div>
       )}
     </div>

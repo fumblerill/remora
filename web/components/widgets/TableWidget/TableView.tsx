@@ -71,7 +71,9 @@ export default function TableView({
     field: string,
     agg: "sum" | "count" | "avg"
   ) => {
-    const vals = rows.map((r) => Number(r[field]) || 0);
+    const vals = rows
+    .map((r) => Number(r[field]))
+    .filter((v) => !isNaN(v));
     if (agg === "sum") return vals.reduce((a, b) => a + b, 0);
     if (agg === "count") return vals.length;
     if (agg === "avg")
@@ -218,7 +220,7 @@ function TanStackTable({
                     onTouchStart={header.getResizeHandler()}
                     className="absolute top-0 right-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-blue-400"
                   />
-                </div> 
+                </div>
               ))}
             </div>
           ))}
