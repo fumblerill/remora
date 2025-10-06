@@ -43,3 +43,6 @@ next-env.d.ts
 # Rust
 Cargo.lock
 target/
+
+# Data
+*.json
