@@ -5,15 +5,14 @@ use axum::{
 };
 use serde::Serialize;
 use std::net::SocketAddr;
-use calamine::{open_workbook_auto_from_rs, Reader};
-use csv::ReaderBuilder;
 use std::io::Cursor;
 use tokio::net::TcpListener;
-
 use tower_http::cors::{Any, CorsLayer};
 use axum::http::Method;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
+mod converter;
+use converter::{convert_csv_to_vec, convert_ods_to_vec, convert_xlsx_to_vec};
 
 #[derive(Serialize)]
 struct UploadResponse {
@@ -26,55 +25,47 @@ async fn upload(mut multipart: Multipart) -> Json<UploadResponse> {
     let mut rows = vec![];
 
     while let Some(field) = multipart.next_field().await.unwrap() {
-        let name = field.name().unwrap_or("").to_string();
-        if name == "file" {
-            let filename = field.file_name().unwrap_or("").to_string();
+        if field.name().unwrap_or("") == "file" {
+            let filename = field.file_name().unwrap_or("неизвестно").to_string();
             let data = field.bytes().await.unwrap();
+            let size_kb = (data.len() as f64) / 1024.0;
 
-            if filename.ends_with(".csv") {
-                // Читаем CSV
-                let mut rdr = ReaderBuilder::new()
-                    .has_headers(true)
-                    .from_reader(data.as_ref());
+            let start = Instant::now();
+            let cursor = Cursor::new(data.to_vec());
 
-                columns = rdr
-                    .headers()
-                    .unwrap()
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect();
-
-                for record in rdr.records() {
-                    rows.push(record.unwrap().iter().map(|s| s.to_string()).collect());
-                }
-            } else if filename.ends_with(".xlsx") {
-                let cursor = Cursor::new(data.to_vec());
-                let mut workbook = open_workbook_auto_from_rs(cursor).unwrap();
-
-                // Логируем все листы
-                for (name, _) in workbook.worksheets() {
-                    println!("Найден лист: {}", name);
-                }
-
-                // Берём первый лист, если он есть
-                if let Some((_, range)) = workbook.worksheets().first() {
-                    if let Some(first_row) = range.rows().next() {
-                        columns = first_row.iter().map(|c| c.to_string()).collect();
-                    }
-                    for row in range.rows().skip(1) {
-                        rows.push(row.iter().map(|c| c.to_string()).collect());
-                    }
-                }
+            let ext = filename.to_lowercase();
+            if ext.ends_with(".csv") {
+                (columns, rows) = convert_csv_to_vec(cursor).unwrap();
+                log_file_info(&filename, "CSV", size_kb, start.elapsed());
+            } else if ext.ends_with(".xlsx") {
+                (columns, rows) = convert_xlsx_to_vec(cursor).unwrap();
+                log_file_info(&filename, "XLSX", size_kb, start.elapsed());
+            } else if ext.ends_with(".ods") {
+                (columns, rows) = convert_ods_to_vec(cursor).unwrap();
+                log_file_info(&filename, "ODS", size_kb, start.elapsed());
+            } else {
+                eprintln!("⚠️  Неподдерживаемый формат файла: {}", filename);
             }
         }
     }
+
     Json(UploadResponse { columns, rows })
+}
+
+fn log_file_info(name: &str, format: &str, size_kb: f64, duration: Duration) {
+    println!(
+        "✅ Обработан файл: {:<25} | Формат: {:<5} | Размер: {:>7.2} КБ | Время: {:>5.1?} мс",
+        name,
+        format,
+        size_kb,
+        duration.as_millis()
+    );
 }
 
 #[tokio::main]
 async fn main() {
     let cors = CorsLayer::new()
-        .allow_origin(Any) // для dev можно Any, потом лучше ограничить
+        .allow_origin(Any)
         .allow_methods([Method::GET, Method::POST])
         .allow_headers(Any)
         .max_age(Duration::from_secs(3600));
