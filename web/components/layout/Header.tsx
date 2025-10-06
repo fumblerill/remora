@@ -31,7 +31,7 @@ export default function Header({
         {/* Левая часть */}
         <div className="flex items-center gap-6">
           <h1 className="text-lg font-bold text-white">
-            Remora <span className="font-normal">| {sectionName}</span>
+            <a href="/">Remora</a> <span className="font-normal">| {sectionName}</span>
           </h1>
 
           {pathname !== "/login" && (

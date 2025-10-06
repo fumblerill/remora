@@ -30,7 +30,6 @@ html, body {
   z-index: 9999 !important;
 }
 
-
 .react-grid-item.react-draggable-dragging {
   z-index: 9999 !important; /* всегда поверх всего */
   cursor: grabbing !important; /* ✋ курсор */

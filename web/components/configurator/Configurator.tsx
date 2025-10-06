@@ -12,23 +12,29 @@ type Widget = {
   id: string;
   type: "table" | "chart";
   layout: Layout;
+  title?: string;
+  config?: any;
 };
+
+interface ConfiguratorProps {
+  widgets: Widget[];
+  data: any[] | null;
+  setWidgets: React.Dispatch<React.SetStateAction<Widget[]>>;
+  isReadonly?: boolean;
+}
 
 export default function Configurator({
   widgets,
   data,
   setWidgets,
-}: {
-  widgets: Widget[];
-  data: any[] | null;
-  setWidgets: React.Dispatch<React.SetStateAction<Widget[]>>;
-}) {
+  isReadonly = false,
+}: ConfiguratorProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isOverTrash, setIsOverTrash] = useState(false);
-
   const TRASH_WIDTH = 30;
 
   const handleDragStart = () => {
+    if (isReadonly) return;
     setIsDragging(true);
     document.body.style.overflow = "hidden";
     document.body.style.width = `${window.innerWidth}px`;
@@ -41,6 +47,7 @@ export default function Configurator({
     _placeholder: any,
     e: MouseEvent
   ) => {
+    if (isReadonly) return;
     if (e) {
       const winW = window.innerWidth;
       setIsOverTrash(e.clientX >= winW - TRASH_WIDTH);
@@ -54,9 +61,10 @@ export default function Configurator({
     _placeholder: any,
     e: MouseEvent | undefined
   ) => {
+    if (isReadonly) return;
+
     const idToRemove = String(oldItem.i);
     const winW = window.innerWidth;
-
     const shouldRemove = (e && e.clientX >= winW - TRASH_WIDTH) || isOverTrash;
 
     if (shouldRemove) {
@@ -70,6 +78,7 @@ export default function Configurator({
   };
 
   const handleLayoutChange = (newLayout: Layout[]) => {
+    if (isReadonly) return;
     setWidgets((prev) =>
       prev.map((w) => {
         const updated = newLayout.find((l) => l.i === String(w.id));
@@ -78,9 +87,16 @@ export default function Configurator({
     );
   };
 
+  // обновление конфига или названия внутри виджета
+  const handleWidgetUpdate = (id: string, updates: Partial<Widget>) => {
+    setWidgets((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, ...updates } : w))
+    );
+  };
+
   return (
     <div className="h-full w-full bg-gray-50 relative">
-      {isDragging && (
+      {!isReadonly && isDragging && (
         <div
           className={`fixed top-0 right-0 h-full w-[${TRASH_WIDTH}px] z-[10000] pointer-events-none transition-all ${
             isOverTrash
@@ -95,15 +111,15 @@ export default function Configurator({
         layout={widgets.map((w) => ({ ...w.layout, i: String(w.id) }))}
         cols={12}
         rowHeight={30}
-        isResizable
-        isDraggable
+        isResizable={!isReadonly}
+        isDraggable={!isReadonly}
         draggableHandle=".drag-handle"
         autoSize
         useCSSTransforms={false}
-        onDragStart={handleDragStart}
-        onDrag={handleDrag}
-        onDragStop={handleDragStop}
-        onLayoutChange={handleLayoutChange}
+        onDragStart={!isReadonly ? handleDragStart : undefined}
+        onDrag={!isReadonly ? handleDrag : undefined}
+        onDragStop={!isReadonly ? handleDragStop : undefined}
+        onLayoutChange={!isReadonly ? handleLayoutChange : undefined}
         margin={[16, 16]}
         containerPadding={[0, 0]}
       >
@@ -113,7 +129,18 @@ export default function Configurator({
             data-grid={{ ...w.layout, i: String(w.id) }}
             className="bg-white border shadow rounded flex p-3 flex-col h-full"
           >
-            <WidgetContainer type={w.type} data={data} />
+            <WidgetContainer
+              widget={w}
+              data={data}
+              onUpdate={(id, updates) =>
+                setWidgets((prev) =>
+                  prev.map((item) =>
+                    item.id === id ? { ...item, ...updates } : item
+                  )
+                )
+              }
+              isReadonly={isReadonly}
+            />
           </div>
         ))}
       </GridLayout>
