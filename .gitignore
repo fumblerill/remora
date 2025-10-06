@@ -46,3 +46,4 @@ target/
 
 # Data
 *.json
+backend/data/

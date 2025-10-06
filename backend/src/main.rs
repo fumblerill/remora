@@ -1,18 +1,24 @@
 use axum::{
-    extract::Multipart,
+    extract::{DefaultBodyLimit, Multipart},
+    http::{HeaderValue, Method},
     routing::post,
     Json, Router,
 };
 use serde::Serialize;
-use std::io::{Cursor, BufReader};
-use std::net::SocketAddr;
-use std::time::{Duration, Instant};
+use std::{
+    env,
+    io::{BufReader, Cursor},
+    net::SocketAddr,
+    time::{Duration, Instant},
+};
 use tokio::net::TcpListener;
-use tower_http::cors::{Any, CorsLayer};
-use axum::http::Method;
+use tower_http::cors::CorsLayer;
 
 mod converter;
 use converter::{convert_csv_to_vec, convert_ods_to_vec, convert_xlsx_to_vec};
+
+mod auth;
+use auth::setup_router;
 
 #[derive(Serialize)]
 struct UploadResponse {
@@ -32,7 +38,7 @@ async fn upload(mut multipart: Multipart) -> Json<UploadResponse> {
             let start = Instant::now();
             let ext = filename.to_lowercase();
 
-            // Копия расширения для замыкания
+            // Копия для spawn_blocking
             let ext_clone = ext.clone();
             let data_clone = data.to_vec();
 
@@ -83,13 +89,31 @@ fn log_file_info(name: &str, ext: &str, size_kb: f64, rows: usize, cols: usize, 
 
 #[tokio::main]
 async fn main() {
+    // 📦 Загружаем переменные окружения из .env
+    dotenv::dotenv().ok();
+
+    // Берём FRONTEND_ORIGIN (если нет — localhost:3000)
+    let frontend_origin =
+        env::var("FRONTEND_ORIGIN").unwrap_or_else(|_| "http://localhost:3000".to_string());
+    println!("🌐 Allowed origin: {}", frontend_origin);
+
+    // Настраиваем CORS
     let cors = CorsLayer::new()
-        .allow_origin(Any)
+        .allow_origin(frontend_origin.parse::<HeaderValue>().unwrap())
         .allow_methods([Method::GET, Method::POST])
-        .allow_headers(Any)
+        .allow_headers([
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::AUTHORIZATION,
+        ])
+        .allow_credentials(true)
         .max_age(Duration::from_secs(3600));
 
-    let app = Router::new().route("/api/upload", post(upload)).layer(cors);
+    // Основное приложение
+    let app = Router::new()
+        .route("/api/upload", post(upload))
+        .merge(auth::setup_router().await)
+        .layer(cors)
+        .layer(DefaultBodyLimit::max(50 * 1024 * 1024)); // 50 МБ
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     println!("🚀 Server running at http://{}", addr);

@@ -4,12 +4,37 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-axum = { version = "0.7", features = ["multipart"] }
+# --- Web Framework ---
+axum = { version = "0.7", features = ["macros", "multipart"] }
+axum-extra = { version = "0.9", features = ["cookie"] }
+
+# --- Async Runtime ---
 tokio = { version = "1", features = ["full"] }
+
+# --- Serialization ---
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# --- HTTP Middleware ---
 tower-http = { version = "0.5", features = ["cors"] }
+
+# --- File Processing ---
 csv = "1"
 zip = "0.6"
 quick-xml = "0.36"
+
+# --- Time & Dates ---
 chrono = { version = "0.4", features = ["serde"] }
+time = "0.3"
+
+# --- Database ---
+sqlx = { version = "0.7", features = ["runtime-tokio", "macros", "sqlite"] }
+
+# --- Auth & Security ---
+argon2 = { version = "0.5", features = ["rand"] }
+rand_core = { version = "0.6", features = ["getrandom"] }
+jsonwebtoken = "9"
+
+# --- Utilities ---
+anyhow = "1"
+dotenv = "0.15"
