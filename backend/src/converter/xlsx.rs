@@ -1,29 +1,31 @@
 use std::borrow::Cow;
 use std::collections::HashSet;
-use std::io::{self, Read, Seek};
+use std::io::{self, Read, Seek, BufReader};
 use quick_xml::events::Event;
 use quick_xml::escape::unescape;
 use zip::read::ZipArchive;
 use chrono::NaiveDate;
 use crate::converter::utils::{open_zip, read_zip_file, xml_reader, parse_merge_range};
 
-pub fn convert_xlsx_to_vec<R: Read + Seek>(mut reader: R) -> io::Result<Vec<Vec<String>>> {
-    let mut zip = open_zip(&mut reader)?;
+/// Конвертация XLSX → Vec<Vec<String>>
+pub fn convert_xlsx_to_vec<R: Read + Seek>(reader: R) -> io::Result<Vec<Vec<String>>> {
+    let buf_reader = BufReader::new(reader);
+    let mut zip = open_zip(buf_reader)?;
     let shared_strings = read_shared_strings(&mut zip)?;
     let (rows, _) = read_sheet(&mut zip, &shared_strings)?;
     Ok(rows)
 }
 
+/// Чтение sharedStrings.xml
 fn read_shared_strings<R: Read + Seek>(zip: &mut ZipArchive<R>) -> io::Result<Vec<String>> {
     let xml = match read_zip_file(zip, "xl/sharedStrings.xml")? {
         Some(s) => s,
         None => return Ok(Vec::new()),
     };
-
     let mut reader = xml_reader(&xml);
-    let mut buf = Vec::new();
-    let mut strings = Vec::new();
-    let mut current_text = String::new();
+    let mut buf = Vec::with_capacity(2048);
+    let mut strings = Vec::with_capacity(1024);
+    let mut current_text = String::with_capacity(64);
 
     loop {
         match reader.read_event_into(&mut buf) {
@@ -33,36 +35,33 @@ fn read_shared_strings<R: Read + Seek>(zip: &mut ZipArchive<R>) -> io::Result<Ve
                 let text = unescape(std::str::from_utf8(raw).unwrap_or("")).unwrap_or(Cow::Borrowed(""));
                 current_text.push_str(&text);
             }
-            Ok(Event::End(ref e)) if e.name().as_ref() == b"si" => {
-                strings.push(current_text.clone());
-            }
+            Ok(Event::End(ref e)) if e.name().as_ref() == b"si" => strings.push(current_text.clone()),
             Ok(Event::Eof) => break,
-            Err(e) => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Ошибка XML: {}", e))),
+            Err(e) => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("XML: {}", e))),
             _ => {}
         }
         buf.clear();
     }
-
     Ok(strings)
 }
 
+/// Чтение листа
 fn read_sheet<R: Read + Seek>(
     zip: &mut ZipArchive<R>,
-    shared_strings: &Vec<String>,
+    shared: &Vec<String>,
 ) -> io::Result<(Vec<Vec<String>>, HashSet<(usize, usize)>)> {
     let xml = match read_zip_file(zip, "xl/worksheets/sheet1.xml")? {
         Some(s) => s,
         None => return Err(io::Error::new(io::ErrorKind::NotFound, "sheet1.xml не найден")),
     };
-
     let mut reader = xml_reader(&xml);
-    let mut buf = Vec::new();
-    let mut rows: Vec<Vec<String>> = Vec::new();
+    let mut buf = Vec::with_capacity(4096);
+    let mut rows: Vec<Vec<String>> = Vec::with_capacity(2048);
     let mut merged_map: Vec<(usize, usize, usize, usize)> = Vec::new();
 
-    let mut current_row = 0;
-    let mut current_col = 0;
-    let mut current_value = String::new();
+    let mut current_row = 0usize;
+    let mut current_col = 0usize;
+    let mut current_value = String::with_capacity(64);
     let mut cell_type = String::new();
 
     loop {
@@ -70,16 +69,14 @@ fn read_sheet<R: Read + Seek>(
             Ok(Event::Start(ref e)) => match e.name().as_ref() {
                 b"row" => {
                     current_col = 0;
-                    let r_attr = e
-                        .attributes()
-                        .flatten()
+                    let r_attr = e.attributes().flatten()
                         .find(|a| a.key.as_ref() == b"r")
                         .and_then(|a| a.unescape_value().ok());
                     if let Some(s) = r_attr {
                         current_row = s.parse::<usize>().unwrap_or(1) - 1;
                     }
                     while rows.len() <= current_row {
-                        rows.push(Vec::new());
+                        rows.push(Vec::with_capacity(16));
                     }
                 }
                 b"c" => {
@@ -90,8 +87,7 @@ fn read_sheet<R: Read + Seek>(
                         let val = a.unescape_value().unwrap_or(Cow::Borrowed(""));
                         if key == b"t" {
                             cell_type = val.to_string();
-                        }
-                        if key == b"r" {
+                        } else if key == b"r" {
                             let (col, _) = parse_cell_ref(&val);
                             current_col = col;
                         }
@@ -119,37 +115,38 @@ fn read_sheet<R: Read + Seek>(
                 while rows[current_row].len() <= current_col {
                     rows[current_row].push(String::new());
                 }
-
                 let val = if cell_type == "s" {
-                    shared_strings
+                    shared
                         .get(current_value.parse::<usize>().unwrap_or(0))
                         .cloned()
                         .unwrap_or_default()
                 } else {
                     format_excel_value(&current_value)
                 };
-
                 rows[current_row][current_col] = val;
                 current_col += 1;
             }
             Ok(Event::Eof) => break,
-            Err(e) => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Ошибка XML: {}", e))),
+            Err(e) => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("XML: {}", e))),
             _ => {}
         }
         buf.clear();
     }
 
-    for (r1, c1, r2, c2) in merged_map {
-        if r1 < rows.len() && c1 < rows[r1].len() {
-            let val = rows[r1][c1].clone();
-            for r in r1..=r2 {
-                for c in c1..=c2 {
-                    if !(r == r1 && c == c1) && r < rows.len() && c < rows[r].len() {
-                        rows[r][c] = String::new();
+    // Отключаем merge при слишком больших таблицах
+    if rows.len() < 10_000 {
+        for (r1, c1, r2, c2) in merged_map {
+            if r1 < rows.len() && c1 < rows[r1].len() {
+                let val = rows[r1][c1].clone();
+                for r in r1..=r2 {
+                    for c in c1..=c2 {
+                        if !(r == r1 && c == c1) && r < rows.len() && c < rows[r].len() {
+                            rows[r][c] = String::new();
+                        }
                     }
                 }
+                rows[r1][c1] = val;
             }
-            rows[r1][c1] = val;
         }
     }
 
@@ -167,7 +164,7 @@ fn format_excel_value(v: &str) -> String {
             }
         }
     }
-    v.to_string()
+    v.trim().to_string()
 }
 
 fn parse_cell_ref(s: &str) -> (usize, usize) {

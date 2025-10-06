@@ -4,12 +4,12 @@ use axum::{
     Json, Router,
 };
 use serde::Serialize;
+use std::io::{Cursor, BufReader};
 use std::net::SocketAddr;
-use std::io::Cursor;
+use std::time::{Duration, Instant};
 use tokio::net::TcpListener;
 use tower_http::cors::{Any, CorsLayer};
 use axum::http::Method;
-use std::time::{Duration, Instant};
 
 mod converter;
 use converter::{convert_csv_to_vec, convert_ods_to_vec, convert_xlsx_to_vec};
@@ -29,36 +29,55 @@ async fn upload(mut multipart: Multipart) -> Json<UploadResponse> {
             let filename = field.file_name().unwrap_or("неизвестно").to_string();
             let data = field.bytes().await.unwrap();
             let size_kb = (data.len() as f64) / 1024.0;
-
             let start = Instant::now();
-            let cursor = Cursor::new(data.to_vec());
-
             let ext = filename.to_lowercase();
-            if ext.ends_with(".csv") {
-                (columns, rows) = convert_csv_to_vec(cursor).unwrap();
-                log_file_info(&filename, "CSV", size_kb, start.elapsed());
-            } else if ext.ends_with(".xlsx") {
-                (columns, rows) = convert_xlsx_to_vec(cursor).unwrap();
-                log_file_info(&filename, "XLSX", size_kb, start.elapsed());
-            } else if ext.ends_with(".ods") {
-                (columns, rows) = convert_ods_to_vec(cursor).unwrap();
-                log_file_info(&filename, "ODS", size_kb, start.elapsed());
-            } else {
-                eprintln!("⚠️  Неподдерживаемый формат файла: {}", filename);
-            }
+
+            // Копия расширения для замыкания
+            let ext_clone = ext.clone();
+            let data_clone = data.to_vec();
+
+            let (cols, rows_data) = tokio::task::spawn_blocking(move || {
+                let reader = BufReader::new(Cursor::new(data_clone));
+                if ext_clone.ends_with(".csv") {
+                    convert_csv_to_vec(reader)
+                } else if ext_clone.ends_with(".xlsx") {
+                    convert_xlsx_to_vec(reader)
+                } else if ext_clone.ends_with(".ods") {
+                    convert_ods_to_vec(reader)
+                } else {
+                    Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "unsupported"))
+                }
+            })
+            .await
+            .unwrap()
+            .unwrap_or((vec![], vec![]));
+
+            let duration = start.elapsed();
+            let nrows = rows_data.len();
+            let ncols = if !rows_data.is_empty() { rows_data[0].len() } else { 0 };
+            log_file_info(&filename, &ext, size_kb, nrows, ncols, duration);
+
+            columns = cols;
+            rows = rows_data;
         }
     }
 
     Json(UploadResponse { columns, rows })
 }
 
-fn log_file_info(name: &str, format: &str, size_kb: f64, duration: Duration) {
+fn log_file_info(name: &str, ext: &str, size_kb: f64, rows: usize, cols: usize, dur: Duration) {
+    let fmt = if ext.ends_with(".csv") {
+        "CSV"
+    } else if ext.ends_with(".xlsx") {
+        "XLSX"
+    } else if ext.ends_with(".ods") {
+        "ODS"
+    } else {
+        "UNK"
+    };
     println!(
-        "✅ Обработан файл: {:<25} | Формат: {:<5} | Размер: {:>7.2} КБ | Время: {:>5.1?} мс",
-        name,
-        format,
-        size_kb,
-        duration.as_millis()
+        "✅ {:<25} | {:<5} | {:>7.2} KB | Rows {:>6} | Cols {:>4} | {:>6.1} ms",
+        name, fmt, size_kb, rows, cols, dur.as_millis()
     );
 }
 
@@ -70,13 +89,10 @@ async fn main() {
         .allow_headers(Any)
         .max_age(Duration::from_secs(3600));
 
-    let app = Router::new()
-        .route("/api/upload", post(upload))
-        .layer(cors);
+    let app = Router::new().route("/api/upload", post(upload)).layer(cors);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     println!("🚀 Server running at http://{}", addr);
-
     let listener = TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
