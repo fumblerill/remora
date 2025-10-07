@@ -62,3 +62,12 @@ pub async fn require_role(
     // запускаем следующий слой
     Ok(next.run(req).await)
 }
+
+#[macro_export]
+macro_rules! protect {
+    ($pool:expr, $role:expr) => {
+        axum::middleware::from_fn_with_state($pool.clone(), |state, jar, req, next| async move {
+            $crate::middleware::auth::require_role(state, jar, req, next, $role).await
+        })
+    };
+}

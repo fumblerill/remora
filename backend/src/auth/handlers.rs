@@ -127,7 +127,10 @@ pub async fn login(
     )
 }
 
-pub async fn me(jar: CookieJar) -> (StatusCode, Json<serde_json::Value>) {
+pub async fn me(
+    State(pool): State<Pool<Sqlite>>,
+    jar: CookieJar,
+) -> (StatusCode, Json<serde_json::Value>) {
     let Some(token_cookie) = jar.get("remora_token") else {
         return (
             StatusCode::UNAUTHORIZED,
@@ -144,19 +147,40 @@ pub async fn me(jar: CookieJar) -> (StatusCode, Json<serde_json::Value>) {
         &DecodingKey::from_secret(secret.as_bytes()),
         &validation,
     ) {
-        Ok(data) => (
-            StatusCode::OK,
-            Json(json!({
-                "user": data.claims.sub,
-                "role": data.claims.role
-            })),
-        ),
+        Ok(data) => {
+            // Найдём пользователя по логину из токена
+            let login = data.claims.sub;
+            match sqlx::query_as::<_, User>("SELECT * FROM users WHERE login = ?")
+                .bind(&login)
+                .fetch_one(&pool)
+                .await
+            {
+                Ok(user) => {
+                    let dashboards: serde_json::Value =
+                        serde_json::from_str(&user.dashboards).unwrap_or(json!([]));
+                    (
+                        StatusCode::OK,
+                        Json(json!({
+                            "id": user.id,
+                            "login": user.login,
+                            "role": user.role,
+                            "dashboards": dashboards
+                        })),
+                    )
+                }
+                Err(e) => (
+                    StatusCode::NOT_FOUND,
+                    Json(json!({ "error": format!("User not found: {}", e) })),
+                ),
+            }
+        }
         Err(_) => (
             StatusCode::UNAUTHORIZED,
             Json(json!({"error": "Invalid token"})),
         ),
     }
 }
+
 
 pub async fn logout(jar: CookieJar) -> (StatusCode, HeaderMap, Json<serde_json::Value>) {
     let mut cookie = Cookie::new("remora_token", "");

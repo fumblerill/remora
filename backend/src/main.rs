@@ -91,15 +91,25 @@ fn log_file_info(name: &str, ext: &str, size_kb: f64, rows: usize, cols: usize, 
 
 #[tokio::main]
 async fn main() {
-    // 📦 Загружаем переменные окружения из .env
-    dotenv::dotenv().ok();
+    // 📦 Загружаем .env только в DEV-режиме
+    let dev_mode = std::env::var("DEV").unwrap_or_else(|_| "false".to_string()) == "true";
+    if dev_mode {
+        dotenv::dotenv().ok();
+        println!("🧩 DEV mode: loading .env from filesystem");
+    } else {
+        println!("🚀 Production mode: using injected env vars");
+    }
 
-    // Берём FRONTEND_ORIGIN (если нет — localhost:3000)
+    // 🔧 Переменные окружения
     let frontend_origin =
         env::var("FRONTEND_ORIGIN").unwrap_or_else(|_| "http://localhost:3000".to_string());
+    let bind_addr = env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let port = env::var("RUST_PORT").unwrap_or_else(|_| "8080".to_string())
+        .parse::<u16>().unwrap_or(8080);
+
     println!("🌐 Allowed origin: {}", frontend_origin);
 
-    // Настраиваем CORS
+    // 🧱 CORS
     let cors = CorsLayer::new()
         .allow_origin(frontend_origin.parse::<HeaderValue>().unwrap())
         .allow_methods([Method::GET, Method::POST])
@@ -110,15 +120,16 @@ async fn main() {
         .allow_credentials(true)
         .max_age(Duration::from_secs(3600));
 
-    // Основное приложение
+    // 🚀 Приложение
     let app = Router::new()
         .route("/api/upload", post(upload))
         .merge(auth::setup_router().await)
         .layer(cors)
         .layer(DefaultBodyLimit::max(50 * 1024 * 1024)); // 50 МБ
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let addr = SocketAddr::from((bind_addr.parse::<std::net::IpAddr>().unwrap(), port));
     println!("🚀 Server running at http://{}", addr);
     let listener = TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
+

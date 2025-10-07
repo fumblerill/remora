@@ -10,24 +10,50 @@ interface DashboardConfig {
   createdAt: string;
 }
 
+interface UserData {
+  id?: number;
+  login?: string;
+  role?: string;
+  dashboards?: string[];
+}
+
 export default function HomePage() {
   const [configs, setConfigs] = useState<DashboardConfig[]>([]);
+  const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function loadConfigs() {
+    async function loadData() {
       try {
-        const res = await fetch("/configs/configs.json", { cache: "no-store" });
-        if (!res.ok) throw new Error("Не удалось загрузить список конфигураций");
-        const data = await res.json();
-        setConfigs(data);
+        // 1️⃣ Получаем текущего пользователя
+        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (!meRes.ok) throw new Error("Unauthorized");
+        const meData = await meRes.json();
+        setUser(meData);
+
+        // 2️⃣ Загружаем список всех конфигов
+        const cfgRes = await fetch("/configs/configs.json", { cache: "no-store" });
+        if (!cfgRes.ok) throw new Error("Не удалось загрузить конфиги");
+        const allConfigs: DashboardConfig[] = await cfgRes.json();
+
+        // 3️⃣ Фильтруем только выданные пользователю
+        const allowed = Array.isArray(meData.dashboards) ? meData.dashboards : [];
+        const filtered = allConfigs.filter((cfg) => allowed.includes(cfg.name));
+
+        setConfigs(filtered);
       } catch (err) {
-        console.error("Ошибка при загрузке configs.json:", err);
+        console.error("Ошибка загрузки дашбордов:", err);
       } finally {
         setLoading(false);
       }
     }
-    loadConfigs();
+
+    loadData();
   }, []);
 
   return (
@@ -39,6 +65,8 @@ export default function HomePage() {
 
         {loading ? (
           <p className="text-gray-500">Загрузка...</p>
+        ) : !user ? (
+          <p className="text-red-500">Ошибка: требуется авторизация</p>
         ) : configs.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {configs.map((cfg) => (
@@ -48,7 +76,9 @@ export default function HomePage() {
               >
                 <div>
                   <h2 className="text-lg font-semibold text-brand mb-1">{cfg.name}</h2>
-                  <p className="text-sm text-gray-500">Обновлён: {new Date(cfg.createdAt).toLocaleString()}</p>
+                  <p className="text-sm text-gray-500">
+                    Обновлён: {new Date(cfg.createdAt).toLocaleString()}
+                  </p>
                 </div>
                 <Link
                   href={`/viewer/${encodeURIComponent(cfg.file.replace(".json", ""))}`}
@@ -61,7 +91,7 @@ export default function HomePage() {
           </div>
         ) : (
           <p className="text-gray-500 text-center mt-6">
-            Пока нет доступных конфигураций.
+            Нет доступных дашбордов.
           </p>
         )}
       </main>
