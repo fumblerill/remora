@@ -20,6 +20,8 @@ use converter::{convert_csv_to_vec, convert_ods_to_vec, convert_xlsx_to_vec};
 mod auth;
 use auth::setup_router;
 
+mod middleware;
+
 #[derive(Serialize)]
 struct UploadResponse {
     columns: Vec<String>,

@@ -1,0 +1,104 @@
+"use client";
+
+import { successToast, errorToast } from "@/lib/toast";
+
+const API = process.env.NEXT_PUBLIC_API_URL;
+
+// 🔄 Получить всех пользователей
+export async function fetchUsers(): Promise<any[]> {
+  try {
+    const res = await fetch(`${API}/api/users/list`, { credentials: "include" });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Ошибка загрузки пользователей");
+    return data.users;
+  } catch (err) {
+    errorToast("Ошибка соединения с сервером");
+    return [];
+  }
+}
+
+// 🧩 Получить список доступных дашбордов
+export async function fetchConfigs(): Promise<any[]> {
+  try {
+    const res = await fetch("/configs/configs.json");
+    if (!res.ok) throw new Error("Не удалось загрузить конфиги");
+    return await res.json();
+  } catch {
+    errorToast("Ошибка загрузки списка дашбордов");
+    return [];
+  }
+}
+
+// ➕ Создать пользователя
+export async function createUser(login: string, password: string, role: string) {
+  try {
+    const res = await fetch(`${API}/api/users/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ login, password, role }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    successToast("Пользователь создан");
+    return true;
+  } catch {
+    errorToast("Ошибка при создании пользователя");
+    return false;
+  }
+}
+
+// 🔁 Изменить роль
+export async function updateRole(id: number, role: string) {
+  try {
+    const res = await fetch(`${API}/api/users/update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ id, role }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    successToast("Роль обновлена");
+    return true;
+  } catch {
+    errorToast("Ошибка обновления роли");
+    return false;
+  }
+}
+
+// 🧩 Обновить дашборды
+export async function updateDashboards(id: number, dashboards: string[]) {
+  try {
+    const res = await fetch(`${API}/api/users/update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ id, dashboards: JSON.stringify(dashboards) }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    successToast("Дашборды обновлены");
+    return true;
+  } catch {
+    errorToast("Ошибка обновления дашбордов");
+    return false;
+  }
+}
+
+// 🗑️ Удалить пользователя
+export async function deleteUser(id: number) {
+  try {
+    const res = await fetch(`${API}/api/users/delete/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    successToast("Пользователь удалён");
+    return true;
+  } catch {
+    errorToast("Ошибка удаления пользователя");
+    return false;
+  }
+}
