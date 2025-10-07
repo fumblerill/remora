@@ -8,7 +8,7 @@ use serde::Serialize;
 use std::{
     env,
     io::{BufReader, Cursor},
-    net::SocketAddr,
+    net::{SocketAddr, ToSocketAddrs},
     time::{Duration, Instant},
 };
 use tokio::net::TcpListener;
@@ -40,7 +40,6 @@ async fn upload(mut multipart: Multipart) -> Json<UploadResponse> {
             let start = Instant::now();
             let ext = filename.to_lowercase();
 
-            // Копия для spawn_blocking
             let ext_clone = ext.clone();
             let data_clone = data.to_vec();
 
@@ -91,28 +90,40 @@ fn log_file_info(name: &str, ext: &str, size_kb: f64, rows: usize, cols: usize, 
 
 #[tokio::main]
 async fn main() {
-    // 📦 Загружаем .env только в DEV-режиме
-    let dev_mode = std::env::var("DEV").unwrap_or_else(|_| "false".to_string()) == "true";
+    dotenv::dotenv().ok();
+
+    let dev_mode = env::var("DEV").unwrap_or_else(|_| "false".to_string()) == "true";
+
     if dev_mode {
-        dotenv::dotenv().ok();
-        println!("🧩 DEV mode: loading .env from filesystem");
+        println!("🧩 DEV mode detected → overriding origins & bind addresses");
     } else {
-        println!("🚀 Production mode: using injected env vars");
+        println!("🚀 Production mode detected → using .env values as-is");
     }
 
-    // 🔧 Переменные окружения
-    let frontend_origin =
-        env::var("FRONTEND_ORIGIN").unwrap_or_else(|_| "http://localhost:3000".to_string());
-    let bind_addr = env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = env::var("RUST_PORT").unwrap_or_else(|_| "8080".to_string())
-        .parse::<u16>().unwrap_or(8080);
+    // ✅ localhost во всех случаях
+    let frontend_origin = if dev_mode {
+        "http://localhost:3000".to_string()
+    } else {
+        env::var("FRONTEND_ORIGIN").unwrap_or_else(|_| "http://localhost:3000".to_string())
+    };
+
+    let bind_addr = if dev_mode {
+        "localhost".to_string()
+    } else {
+        env::var("BIND_ADDR").unwrap_or_else(|_| "localhost".to_string())
+    };
+
+    let port = env::var("RUST_PORT")
+        .unwrap_or_else(|_| "8080".to_string())
+        .parse::<u16>()
+        .unwrap_or(8080);
 
     println!("🌐 Allowed origin: {}", frontend_origin);
+    println!("📦 Binding on {}:{}", bind_addr, port);
 
-    // 🧱 CORS
     let cors = CorsLayer::new()
         .allow_origin(frontend_origin.parse::<HeaderValue>().unwrap())
-        .allow_methods([Method::GET, Method::POST])
+        .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
         .allow_headers([
             axum::http::header::CONTENT_TYPE,
             axum::http::header::AUTHORIZATION,
@@ -120,16 +131,21 @@ async fn main() {
         .allow_credentials(true)
         .max_age(Duration::from_secs(3600));
 
-    // 🚀 Приложение
     let app = Router::new()
         .route("/api/upload", post(upload))
         .merge(auth::setup_router().await)
         .layer(cors)
-        .layer(DefaultBodyLimit::max(50 * 1024 * 1024)); // 50 МБ
+        .layer(DefaultBodyLimit::max(50 * 1024 * 1024));
 
-    let addr = SocketAddr::from((bind_addr.parse::<std::net::IpAddr>().unwrap(), port));
-    println!("🚀 Server running at http://{}", addr);
+    // 👇 теперь localhost резолвится корректно
+    let addr = format!("{}:{}", bind_addr, port)
+        .to_socket_addrs()
+        .unwrap()
+        .next()
+        .unwrap();
+
+    println!("🚀 Server running at http://{}:{}", bind_addr, port);
+
     let listener = TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
-

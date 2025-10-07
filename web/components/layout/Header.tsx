@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUserRole } from "@/lib/useUserRole";
+import { getApiUrl } from "@/lib/env"; // ✅ централизованная логика API URL
 import { useState } from "react";
 
 export default function Header() {
@@ -10,6 +11,8 @@ export default function Header() {
   const router = useRouter();
   const { role, loading, refresh } = useUserRole();
   const [logoutLoading, setLogoutLoading] = useState(false);
+
+  const API = getApiUrl(); // 🌍 теперь это общий способ получения API URL
 
   let sectionName = "Главная";
   if (pathname.startsWith("/admin")) sectionName = "Админ-панель";
@@ -22,22 +25,25 @@ export default function Header() {
   const handleLogout = async () => {
     try {
       setLogoutLoading(true);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/logout`, {
+      const res = await fetch(`${API}/api/logout`, {
         method: "POST",
         credentials: "include",
       });
-      setLogoutLoading(false);
+
       if (res.ok) {
         await refresh();
         router.push("/login");
+      } else {
+        console.error("Logout error:", await res.text());
       }
     } catch (err) {
       console.error("Logout failed:", err);
+    } finally {
       setLogoutLoading(false);
     }
   };
 
-  // 🔒 если не авторизован — не показываем приватные кнопки
+  // 🔒 Если не авторизован или в процессе загрузки — не показываем шапку
   if (pathname === "/login" || loading) {
     return null;
   }
@@ -68,6 +74,7 @@ export default function Header() {
             </Link>
           </>
         )}
+
         <button
           onClick={handleLogout}
           disabled={logoutLoading}

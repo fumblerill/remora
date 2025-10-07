@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
 import Link from "next/link";
+import { getApiUrl } from "@/lib/env"; // ✅ централизованный источник API URL
 
 interface DashboardConfig {
   name: string;
@@ -21,19 +22,20 @@ export default function HomePage() {
   const [configs, setConfigs] = useState<DashboardConfig[]>([]);
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const API = getApiUrl(); // 🌍 теперь API определяется централизованно
 
   useEffect(() => {
     async function loadData() {
       try {
         // 1️⃣ Получаем текущего пользователя
-        const meRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+        const meRes = await fetch(`${API}/api/me`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
         });
 
         if (!meRes.ok) throw new Error("Unauthorized");
-        const meData = await meRes.json();
+        const meData: UserData = await meRes.json();
         setUser(meData);
 
         // 2️⃣ Загружаем список всех конфигов
@@ -43,7 +45,10 @@ export default function HomePage() {
 
         // 3️⃣ Фильтруем только выданные пользователю
         const allowed = Array.isArray(meData.dashboards) ? meData.dashboards : [];
-        const filtered = allConfigs.filter((cfg) => allowed.includes(cfg.name));
+        const filtered =
+          allowed.length > 0
+            ? allConfigs.filter((cfg) => allowed.includes(cfg.name))
+            : [];
 
         setConfigs(filtered);
       } catch (err) {
@@ -54,7 +59,7 @@ export default function HomePage() {
     }
 
     loadData();
-  }, []);
+  }, [API]);
 
   return (
     <div className="min-h-screen flex flex-col">

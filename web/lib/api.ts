@@ -1,10 +1,14 @@
+import { getApiUrl } from "@/lib/env"; // если уже есть общий env-хелпер
+
 export async function uploadFile(
   file: File
 ): Promise<{ columns: string[]; rows: string[][] }> {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch("http://localhost:8080/api/upload", {
+  const API = getApiUrl();
+
+  const res = await fetch(`${API}/api/upload`, {
     method: "POST",
     body: formData,
   });

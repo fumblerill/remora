@@ -69,7 +69,7 @@ pub async fn setup_router() -> Router {
         .route(
             "/api/users/update",
             post(handlers::update_user)
-                .route_layer(protect!(pool, "SuperAdmin")),
+                .route_layer(protect!(pool, "Admin")),
         )
         .route(
             "/api/users/delete/:id",

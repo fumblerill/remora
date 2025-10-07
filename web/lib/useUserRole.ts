@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { getApiUrl } from "@/lib/env"; // ✅ единая точка для API URL
 
 export function useUserRole() {
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const API = getApiUrl(); // 🌍 определяем API адрес
 
   const fetchRole = useCallback(async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/me`, {
+      const res = await fetch(`${API}/api/me`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -26,7 +28,7 @@ export function useUserRole() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [API]);
 
   useEffect(() => {
     fetchRole();
