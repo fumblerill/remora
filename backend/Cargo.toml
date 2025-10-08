@@ -16,7 +16,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
 # --- HTTP Middleware ---
-tower-http = { version = "0.5", features = ["cors"] }
+tower-http = { version = "0.6.6", features = ["cors"] }
 
 # --- File Processing ---
 csv = "1"

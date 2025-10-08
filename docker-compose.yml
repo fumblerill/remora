@@ -1,0 +1,24 @@
+services:
+  remora_backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: remora_backend
+    env_file: .env
+    ports:
+      - "${RUST_PORT}:${RUST_PORT}"
+    volumes:
+      - ./backend/data:/app/data
+    restart: always
+
+  remora_web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    container_name: remora_web
+    env_file: .env
+    ports:
+      - "${FRONT_PORT}:${FRONT_PORT}"
+    depends_on:
+      - remora_backend
+    restart: always

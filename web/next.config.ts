@@ -1,16 +1,20 @@
-import type { NextConfig } from "next";
 import path from "path";
 import dotenv from "dotenv";
+import dotenvExpand from "dotenv-expand";
+import type { NextConfig } from "next";
 
-// Загружаем общий .env
-dotenv.config({ path: path.resolve(__dirname, "../.env") });
+// Загружаем и расширяем .env (чтобы поддерживались ссылки вида ${FRONT_PORT})
+const envPath = path.resolve(__dirname, "../.env");
+const envConfig = dotenv.config({ path: envPath });
+dotenvExpand.expand(envConfig);
 
 const nextConfig: NextConfig = {
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
-    PROD_API_URL: process.env.PROD_API_URL,
+    RUST_PORT: process.env.RUST_PORT,
+    FRONT_PORT: process.env.FRONT_PORT,
     JWT_SECRET: process.env.JWT_SECRET,
   },
+  reactStrictMode: true,
 };
 
 export default nextConfig;

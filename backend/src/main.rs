@@ -1,7 +1,7 @@
 use axum::{
     extract::{DefaultBodyLimit, Multipart},
     http::{HeaderValue, Method},
-    routing::post,
+    routing::{get, post},
     Json, Router,
 };
 use serde::Serialize;
@@ -73,18 +73,9 @@ async fn upload(mut multipart: Multipart) -> Json<UploadResponse> {
 }
 
 fn log_file_info(name: &str, ext: &str, size_kb: f64, rows: usize, cols: usize, dur: Duration) {
-    let fmt = if ext.ends_with(".csv") {
-        "CSV"
-    } else if ext.ends_with(".xlsx") {
-        "XLSX"
-    } else if ext.ends_with(".ods") {
-        "ODS"
-    } else {
-        "UNK"
-    };
     println!(
         "✅ {:<25} | {:<5} | {:>7.2} KB | Rows {:>6} | Cols {:>4} | {:>6.1} ms",
-        name, fmt, size_kb, rows, cols, dur.as_millis()
+        name, ext, size_kb, rows, cols, dur.as_millis()
     );
 }
 
@@ -92,37 +83,35 @@ fn log_file_info(name: &str, ext: &str, size_kb: f64, rows: usize, cols: usize, 
 async fn main() {
     dotenv::dotenv().ok();
 
-    let dev_mode = env::var("DEV").unwrap_or_else(|_| "false".to_string()) == "true";
+    let rust_port = env::var("RUST_PORT").unwrap_or_else(|_| "8080".to_string());
+    let front_port = env::var("FRONT_PORT").unwrap_or_else(|_| "3000".to_string());
+    let bind_addr = format!("0.0.0.0:{}", rust_port);
 
-    if dev_mode {
-        println!("🧩 DEV mode detected → overriding origins & bind addresses");
-    } else {
-        println!("🚀 Production mode detected → using .env values as-is");
+    // ───────────────────────────────
+    // 🌐 Формируем CORS Origins
+    // ───────────────────────────────
+    let cors_template = env::var("CORS_ORIGINS_TEMPLATE").unwrap_or_else(|_| {
+        "http://localhost:{FRONT_PORT},http://127.0.0.1:{FRONT_PORT},http://0.0.0.0:{FRONT_PORT}"
+            .to_string()
+    });
+
+    let cors_origins_env = cors_template.replace("{FRONT_PORT}", &front_port);
+
+    let allowed_origins: Vec<HeaderValue> = cors_origins_env
+        .split(',')
+        .filter_map(|s| s.trim().parse::<HeaderValue>().ok())
+        .collect();
+
+    println!("🌐 Allowed origins:");
+    for origin in &allowed_origins {
+        println!("   → {}", origin.to_str().unwrap_or_default());
     }
 
-    // ✅ localhost во всех случаях
-    let frontend_origin = if dev_mode {
-        "http://localhost:3000".to_string()
-    } else {
-        env::var("FRONTEND_ORIGIN").unwrap_or_else(|_| "http://localhost:3000".to_string())
-    };
-
-    let bind_addr = if dev_mode {
-        "localhost".to_string()
-    } else {
-        env::var("BIND_ADDR").unwrap_or_else(|_| "localhost".to_string())
-    };
-
-    let port = env::var("RUST_PORT")
-        .unwrap_or_else(|_| "8080".to_string())
-        .parse::<u16>()
-        .unwrap_or(8080);
-
-    println!("🌐 Allowed origin: {}", frontend_origin);
-    println!("📦 Binding on {}:{}", bind_addr, port);
-
+    // ───────────────────────────────
+    // 🔐 CORS middleware
+    // ───────────────────────────────
     let cors = CorsLayer::new()
-        .allow_origin(frontend_origin.parse::<HeaderValue>().unwrap())
+        .allow_origin(allowed_origins)
         .allow_methods([Method::GET, Method::POST, Method::DELETE, Method::OPTIONS])
         .allow_headers([
             axum::http::header::CONTENT_TYPE,
@@ -131,21 +120,19 @@ async fn main() {
         .allow_credentials(true)
         .max_age(Duration::from_secs(3600));
 
+    // ───────────────────────────────
+    // Роутер — теперь CORS применяется ГЛОБАЛЬНО
+    // ───────────────────────────────
     let app = Router::new()
         .route("/api/upload", post(upload))
         .merge(auth::setup_router().await)
-        .layer(cors)
-        .layer(DefaultBodyLimit::max(50 * 1024 * 1024));
+        .route("/api/ping", get(|| async { "pong" })) // тестовый endpoint
+        .layer(DefaultBodyLimit::max(50 * 1024 * 1024))
+        .layer(cors); // 👈 CORS добавлен последним — применяется ко всем роутам
 
-    // 👇 теперь localhost резолвится корректно
-    let addr = format!("{}:{}", bind_addr, port)
-        .to_socket_addrs()
-        .unwrap()
-        .next()
-        .unwrap();
+    println!("🚀 Server running at {}", bind_addr);
 
-    println!("🚀 Server running at http://{}:{}", bind_addr, port);
-
+    let addr: SocketAddr = bind_addr.to_socket_addrs().unwrap().next().unwrap();
     let listener = TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
