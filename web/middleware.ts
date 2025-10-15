@@ -3,7 +3,11 @@ import type { NextRequest } from "next/server";
 import * as jose from "jose";
 import { getApiUrl, getJwtSecret } from "@/lib/env";
 
-const API_URL = getApiUrl();
+const API_URL =
+  process.env.NODE_ENV === "production"
+    ? "http://127.0.0.1:8080"
+    : getApiUrl();
+
 const JWT_SECRET = getJwtSecret();
 
 console.log("🧩 Middleware connected to", API_URL);
