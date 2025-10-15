@@ -79,32 +79,98 @@ fn log_file_info(name: &str, ext: &str, size_kb: f64, rows: usize, cols: usize, 
     );
 }
 
+fn append_port(origin: &str, port: &str) -> String {
+    if port.is_empty() || port == "0" {
+        return origin.to_string();
+    }
+
+    if let Some((_, tail)) = origin.rsplit_once(':') {
+        if tail.chars().all(|c| c.is_ascii_digit()) {
+            return origin.to_string();
+        }
+    }
+
+    format!("{}:{}", origin, port)
+}
+
+fn push_origin(origins: &mut Vec<String>, origin: String) {
+    let trimmed = origin.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+
+    if !origins.iter().any(|existing| existing == trimmed) {
+        origins.push(trimmed.to_string());
+    }
+}
+
 #[tokio::main]
 async fn main() {
     dotenv::dotenv().ok();
 
     let rust_port = env::var("RUST_PORT").unwrap_or_else(|_| "8080".to_string());
     let front_port = env::var("FRONT_PORT").unwrap_or_else(|_| "3000".to_string());
+    let base_url = env::var("BASE_URL").unwrap_or_else(|_| "http://localhost".to_string());
     let bind_addr = format!("0.0.0.0:{}", rust_port);
 
     // ───────────────────────────────
     // 🌐 Формируем CORS Origins
     // ───────────────────────────────
-    let cors_template = env::var("CORS_ORIGINS_TEMPLATE").unwrap_or_else(|_| {
-        "http://localhost:{FRONT_PORT},http://127.0.0.1:{FRONT_PORT},http://0.0.0.0:{FRONT_PORT}"
-            .to_string()
-    });
+    let cors_direct = env::var("CORS_ORIGINS").ok().map(|value| value.trim().to_string());
 
-    let cors_origins_env = cors_template.replace("{FRONT_PORT}", &front_port);
+    let cors_raw = if let Some(origins) = cors_direct.as_ref().filter(|s| !s.is_empty()) {
+        origins.to_owned()
+    } else {
+        env::var("CORS_ORIGINS_TEMPLATE").unwrap_or_else(|_| {
+            "http://localhost:{FRONT_PORT},http://127.0.0.1:{FRONT_PORT},http://0.0.0.0:{FRONT_PORT}"
+                .to_string()
+        })
+    };
 
-    let allowed_origins: Vec<HeaderValue> = cors_origins_env
+    let cors_string = cors_raw
+        .replace("{FRONT_PORT}", &front_port)
+        .replace("{RUST_PORT}", &rust_port)
+        .replace("{BASE_URL}", &base_url);
+
+    let mut origin_strings: Vec<String> = cors_string
         .split(',')
-        .filter_map(|s| s.trim().parse::<HeaderValue>().ok())
+        .filter_map(|s| {
+            let trimmed = s.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        })
         .collect();
 
-    println!("🌐 Allowed origins:");
-    for origin in &allowed_origins {
-        println!("   → {}", origin.to_str().unwrap_or_default());
+    for key in ["FRONTEND_ORIGIN", "NEXT_PUBLIC_FRONTEND_ORIGIN"] {
+        if let Ok(value) = env::var(key) {
+            push_origin(&mut origin_strings, value);
+        }
+    }
+
+    let derived_front_origin = append_port(&base_url, &front_port);
+    push_origin(&mut origin_strings, derived_front_origin);
+
+    let mut allowed_origins = Vec::new();
+    let mut log_lines = Vec::new();
+
+    for origin in origin_strings {
+        match origin.parse::<HeaderValue>() {
+            Ok(value) => {
+                log_lines.push(origin);
+                allowed_origins.push(value);
+            }
+            Err(_) => {
+                eprintln!("⚠️ Invalid CORS origin skipped: {}", origin);
+            }
+        }
+    }
+
+    println!("🌐 Allowed origins (CORS):");
+    for origin in &log_lines {
+        println!("   → {}", origin);
     }
 
     // ───────────────────────────────

@@ -1,39 +1,43 @@
 # ---------- Stage 1: Build ----------
 FROM rustlang/rust:nightly AS builder
 
-# Рабочая директория внутри контейнера
 WORKDIR /app
 
-# Копируем файлы манифеста для кеширования зависимостей
+# Копируем манифесты и исходники
 COPY backend/Cargo.toml backend/Cargo.lock ./
 COPY backend/src ./src
 
-# Копируем общий .env (если нужен на этапе компиляции)
+# Копируем .env (опционально, если нужно во время сборки)
 COPY .env .env
 
-# Собираем бинарник (release)
+# Собираем release-бинарник
 RUN cargo build --release
 
 
 # ---------- Stage 2: Runtime ----------
 FROM debian:bookworm-slim AS runtime
 
-# Устанавливаем только нужные пакеты (SSL, SQLite)
-RUN apt-get update && apt-get install -y libssl3 ca-certificates sqlite3 && rm -rf /var/lib/apt/lists/*
+# Минимум зависимостей
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libssl3 ca-certificates sqlite3 && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
 ENV RUST_LOG=info
 ENV RUST_BACKTRACE=1
 
-# Копируем бинарник из builder — подставь имя пакета из Cargo.toml (скорее всего "remora" или "remora-backend")
+# Копируем бинарник
 COPY --from=builder /app/target/release/remora-backend /app/backend
 
-# Копируем данные и .env
-COPY backend/data ./data
+# ⚙️ Создаём каталог под базу — только структуру, без файлов
+RUN mkdir -p /app/data
+
+# Копируем .env
 COPY .env .env
 
-# Открываем порт (значение приходит из env_file)
+# Открываем порт из переменной окружения (Docker подставит автоматически)
 EXPOSE ${RUST_PORT}
 
-# Запуск без bash — окружение уже подставляется Docker’ом
+# Запуск без оболочки (окружение уже подставляется Docker’ом)
 CMD ["./backend"]

@@ -1,21 +1,56 @@
 // ✅ Централизованное управление переменными окружения Remora
 
-const FRONT_PORT = process.env.FRONT_PORT || "3000";
-const RUST_PORT = process.env.RUST_PORT || "8080";
-const BASE_HOST = "http://localhost";
+const FRONT_PORT =
+  process.env.NEXT_PUBLIC_FRONT_PORT || process.env.FRONT_PORT || "3000";
+const RUST_PORT =
+  process.env.NEXT_PUBLIC_RUST_PORT || process.env.RUST_PORT || "8080";
+
+const DEFAULT_BASE_URL =
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  process.env.BASE_URL ||
+  "http://localhost";
+
+const API_URL_OVERRIDE =
+  process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "";
+
+const FRONTEND_ORIGIN_OVERRIDE =
+  process.env.NEXT_PUBLIC_FRONTEND_ORIGIN ||
+  process.env.FRONTEND_ORIGIN ||
+  "";
+
+function appendPort(origin: string, port: string): string {
+  if (!port || port === "0") {
+    return origin;
+  }
+
+  // Если хост уже содержит порт (например, https://example.com:3000) — оставляем как есть
+  if (/:[0-9]+$/.test(origin)) {
+    return origin;
+  }
+
+  return `${origin}:${port}`;
+}
 
 /**
  * 🌍 URL Rust-бэкенда
  */
 export function getApiUrl(): string {
-  return `${BASE_HOST}:${RUST_PORT}`;
+  if (API_URL_OVERRIDE) {
+    return API_URL_OVERRIDE;
+  }
+
+  return appendPort(DEFAULT_BASE_URL, RUST_PORT);
 }
 
 /**
  * 🌐 Origin фронтенда (для логов и CORS)
  */
 export function getFrontendOrigin(): string {
-  return `${BASE_HOST}:${FRONT_PORT}`;
+  if (FRONTEND_ORIGIN_OVERRIDE) {
+    return FRONTEND_ORIGIN_OVERRIDE;
+  }
+
+  return appendPort(DEFAULT_BASE_URL, FRONT_PORT);
 }
 
 /**
@@ -34,4 +69,5 @@ console.log("🧩 Remora env summary →", {
   RUST_PORT,
   API_URL: getApiUrl(),
   FRONTEND_ORIGIN: getFrontendOrigin(),
+  BASE_URL: DEFAULT_BASE_URL,
 });
