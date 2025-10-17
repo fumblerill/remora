@@ -13,6 +13,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  type LegendProps,
 } from "recharts";
 import type { ChartConfig, ChartFilter } from "./ChartEditor";
 import type { PieLabelRenderProps } from "recharts";
@@ -165,6 +166,55 @@ export default function ChartView({
               verticalAlign: "bottom" as const,
               align: "center" as const,
             };
+  const verticalLegendMaxHeight = useMemo(
+    () => Math.max(120, height - 40),
+    [height],
+  );
+  const legendWrapperStyle = useMemo(() => {
+    if (!config.legend) return undefined;
+    if (config.legendPosition === "right" || config.legendPosition === "left") {
+      return {
+        width: 220,
+        maxWidth: 220,
+        maxHeight: verticalLegendMaxHeight,
+        overflowY: "auto",
+        padding: "8px 12px",
+      } satisfies LegendProps["wrapperStyle"];
+    }
+    return {
+      width: "100%",
+      maxHeight: 88,
+      overflowY: "auto",
+      padding: "4px 12px",
+    } satisfies LegendProps["wrapperStyle"];
+  }, [config.legend, config.legendPosition, verticalLegendMaxHeight]);
+
+  const legendFormatter = useMemo(
+    () =>
+      (value: any) => (
+        <span
+          style={{
+            display: "inline-block",
+            maxWidth:
+              config.legendPosition === "right" ||
+              config.legendPosition === "left"
+                ? 180
+                : 260,
+            whiteSpace: "normal",
+            wordBreak: "break-word",
+            lineHeight: 1.25,
+            textAlign:
+              config.legendPosition === "right" ||
+              config.legendPosition === "left"
+                ? "left"
+            : "center",
+          }}
+        >
+          {String(value ?? "")}
+        </span>
+      ),
+    [config.legendPosition],
+  );
 
   useEffect(() => {
     setHiddenSeries([]);
@@ -365,7 +415,13 @@ export default function ChartView({
               return null;
             }}
           />
-          {config.legend && <Legend {...legendProps} />}
+          {config.legend && (
+            <Legend
+              {...legendProps}
+              wrapperStyle={legendWrapperStyle}
+              formatter={legendFormatter}
+            />
+          )}
           <Pie
             data={pieData}
             dataKey="value"
@@ -417,15 +473,30 @@ export default function ChartView({
             (categoryLegendEnabled ? (
               <Legend
                 {...legendProps}
+                wrapperStyle={legendWrapperStyle}
                 content={() => {
                   const seriesKey = seriesDefinitions[0]?.key;
                   if (!seriesKey) return null;
+                  const maxHeight = verticalLegendMaxHeight;
                   return (
-                    <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    <ul
+                      style={{
+                        listStyle: "none",
+                        padding: 0,
+                        margin: 0,
+                        maxHeight,
+                        overflowY: "auto",
+                        paddingRight: 8,
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 4,
+                      }}
+                    >
                       {barData.map((entry, idx) => {
                         const category = entry.category;
                         const isHidden = hiddenCategories.includes(category);
                         const value = entry[seriesKey];
+                        const isLast = idx === barData.length - 1;
                         return (
                           <li
                             key={`legend-category-${category}-${idx}`}
@@ -435,11 +506,14 @@ export default function ChartView({
                                 : COLORS[idx % COLORS.length],
                               cursor: "pointer",
                               userSelect: "none",
-                              marginBottom: 4,
                               display: "flex",
-                              alignItems: "center",
-                              gap: 6,
+                              flexDirection: "column",
+                              gap: 2,
                               fontSize: "0.85rem",
+                              borderBottom: isLast
+                                ? "none"
+                                : "1px dashed #e5e7eb",
+                              paddingBottom: isLast ? 0 : 4,
                             }}
                             onClick={() =>
                               setHiddenCategories((prev) =>
@@ -449,18 +523,43 @@ export default function ChartView({
                               )
                             }
                           >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  width: 10,
+                                  height: 10,
+                                  backgroundColor: isHidden
+                                    ? "#ccc"
+                                    : COLORS[idx % COLORS.length],
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <span
+                                style={{
+                                  flex: 1,
+                                  wordBreak: "break-word",
+                                  whiteSpace: "normal",
+                                  lineHeight: 1.3,
+                                }}
+                              >
+                                {category || "—"}
+                              </span>
+                            </div>
                             <span
                               style={{
-                                display: "inline-block",
-                                width: 10,
-                                height: 10,
-                                backgroundColor: isHidden
-                                  ? "#ccc"
-                                  : COLORS[idx % COLORS.length],
+                                fontWeight: 500,
+                                paddingLeft: 16,
                               }}
-                            />
-                            <span style={{ flex: 1 }}>{category || "—"}</span>
-                            <span style={{ fontWeight: 500 }}>{value}</span>
+                            >
+                              {value}
+                            </span>
                           </li>
                         );
                       })}
@@ -469,7 +568,12 @@ export default function ChartView({
                 }}
               />
             ) : (
-              <Legend {...legendProps} onClick={handleLegendClick} />
+              <Legend
+                {...legendProps}
+                wrapperStyle={legendWrapperStyle}
+                formatter={legendFormatter}
+                onClick={handleLegendClick}
+              />
             ))}
           {seriesDefinitions.map((series, seriesIdx) => {
             const baseColor = COLORS[seriesIdx % COLORS.length];
@@ -525,7 +629,12 @@ export default function ChartView({
           />
           <Tooltip />
           {config.legend && (
-            <Legend {...legendProps} onClick={handleLegendClick} />
+            <Legend
+              {...legendProps}
+              wrapperStyle={legendWrapperStyle}
+              formatter={legendFormatter}
+              onClick={handleLegendClick}
+            />
           )}
           {seriesDefinitions.map((series, idx) => (
             <Line

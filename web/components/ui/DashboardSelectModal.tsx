@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
 import { LayoutDashboard } from "lucide-react";
 
@@ -35,6 +35,31 @@ export default function DashboardSelectModal({
     }
   }, [isOpen, selected]);
 
+  const options = useMemo(() => {
+    const merged: Array<ConfigOption & { missing?: boolean }> = [];
+    const seen = new Set<string>();
+
+    configs.forEach((cfg) => {
+      if (cfg.name && !seen.has(cfg.name)) {
+        merged.push(cfg);
+        seen.add(cfg.name);
+      }
+    });
+
+    [...selected, ...localSelection].forEach((name) => {
+      if (!name || seen.has(name)) return;
+      merged.push({
+        name,
+        file: name,
+        createdAt: "",
+        missing: true,
+      });
+      seen.add(name);
+    });
+
+    return merged.sort((a, b) => a.name.localeCompare(b.name, "ru", { sensitivity: "base" }));
+  }, [configs, localSelection, selected]);
+
   const toggle = (name: string) => {
     setLocalSelection((prev) =>
       prev.includes(name) ? prev.filter((n) => n !== name) : [...prev, name]
@@ -51,14 +76,14 @@ export default function DashboardSelectModal({
       </div>
 
       <div className="border rounded-md max-h-64 overflow-y-auto divide-y">
-        {configs.length === 0 ? (
+        {options.length === 0 ? (
           <p className="p-3 text-sm text-gray-500">Нет сохранённых дашбордов.</p>
         ) : (
-          configs.map((cfg) => {
+          options.map((cfg) => {
             const checked = localSelection.includes(cfg.name);
             return (
               <label
-                key={cfg.file}
+                key={`${cfg.file}-${cfg.name}`}
                 className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-gray-50 cursor-pointer"
               >
                 <input
@@ -66,7 +91,14 @@ export default function DashboardSelectModal({
                   checked={checked}
                   onChange={() => toggle(cfg.name)}
                 />
-                <span className="flex-1">{cfg.name}</span>
+                <span className={`flex-1 ${cfg.missing ? "text-gray-500 italic" : ""}`}>
+                  {cfg.name}
+                  {cfg.missing && (
+                    <span className="ml-2 inline-flex items-center rounded bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
+                      удалённый файл
+                    </span>
+                  )}
+                </span>
               </label>
             );
           })
@@ -90,4 +122,3 @@ export default function DashboardSelectModal({
     </Modal>
   );
 }
-
