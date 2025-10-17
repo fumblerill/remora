@@ -34,6 +34,13 @@ pub async fn setup(
         );
     }
 
+    if payload.login.trim().is_empty() || payload.password.trim().is_empty() {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "Login and password required"})),
+        );
+    }
+
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
     let hash = argon2
