@@ -1,11 +1,11 @@
-use axum::routing::{get, post, delete};
+use axum::routing::{delete, get, post};
 use axum::Router;
 use sqlx::sqlite::SqlitePoolOptions;
-use std::{fs, env, path::PathBuf};
+use std::{env, fs, path::PathBuf};
 
 mod db;
-mod models;
 pub mod handlers;
+mod models;
 
 use crate::protect;
 
@@ -26,7 +26,11 @@ pub async fn setup_router() -> Router {
 
     // ✅ Создаём директорию, если её нет
     if let Err(e) = fs::create_dir_all(&db_dir) {
-        eprintln!("⚠️ Failed to ensure data dir: {} — {:?}", db_dir.display(), e);
+        eprintln!(
+            "⚠️ Failed to ensure data dir: {} — {:?}",
+            db_dir.display(),
+            e
+        );
     }
 
     let db_path = db_dir.join("users.db");

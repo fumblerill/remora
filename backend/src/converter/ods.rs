@@ -1,15 +1,20 @@
+use crate::converter::utils::{open_zip, read_zip_file, xml_reader};
+use chrono::NaiveDate;
+use quick_xml::escape::unescape;
+use quick_xml::events::Event;
 use std::borrow::Cow;
 use std::io::{self, Read, Seek};
-use quick_xml::events::Event;
-use quick_xml::escape::unescape;
-use chrono::NaiveDate;
-use crate::converter::utils::{open_zip, read_zip_file, xml_reader};
 
 pub fn convert_ods_to_vec<R: Read + Seek>(mut reader: R) -> io::Result<Vec<Vec<String>>> {
     let mut zip = open_zip(&mut reader)?;
     let xml = match read_zip_file(&mut zip, "content.xml")? {
         Some(s) => s,
-        None => return Err(io::Error::new(io::ErrorKind::NotFound, "content.xml не найден")),
+        None => {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "content.xml не найден",
+            ))
+        }
     };
 
     let mut reader = xml_reader(&xml);
@@ -49,7 +54,8 @@ pub fn convert_ods_to_vec<R: Read + Seek>(mut reader: R) -> io::Result<Vec<Vec<S
             Ok(Event::Text(t)) => {
                 if in_cell {
                     let raw = t.as_ref();
-                    let text = unescape(std::str::from_utf8(raw).unwrap_or("")).unwrap_or(Cow::Borrowed(""));
+                    let text = unescape(std::str::from_utf8(raw).unwrap_or(""))
+                        .unwrap_or(Cow::Borrowed(""));
                     current_text.push_str(&text);
                 }
             }
@@ -76,7 +82,10 @@ pub fn convert_ods_to_vec<R: Read + Seek>(mut reader: R) -> io::Result<Vec<Vec<S
             },
             Ok(Event::Eof) => break,
             Err(e) => {
-                return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Ошибка XML ODS: {}", e)))
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("Ошибка XML ODS: {}", e),
+                ))
             }
             _ => {}
         }

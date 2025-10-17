@@ -10,7 +10,10 @@ pub fn open_zip<R: Read + Seek>(reader: R) -> io::Result<ZipArchive<R>> {
 }
 
 /// Прочитать файл внутри ZIP
-pub fn read_zip_file<R: Read + Seek>(zip: &mut ZipArchive<R>, name: &str) -> io::Result<Option<String>> {
+pub fn read_zip_file<R: Read + Seek>(
+    zip: &mut ZipArchive<R>,
+    name: &str,
+) -> io::Result<Option<String>> {
     for i in 0..zip.len() {
         let mut file = zip.by_index(i)?;
         if file.name().ends_with(name) {
@@ -29,7 +32,6 @@ pub fn xml_reader(data: &str) -> XmlReader<&[u8]> {
     reader
 }
 
-
 /// Вспомогательная: разделение первой строки на заголовки
 pub fn split_header_rows(rows: Vec<Vec<String>>) -> (Vec<String>, Vec<Vec<String>>) {
     if rows.is_empty() {
@@ -43,7 +45,12 @@ pub fn split_header_rows(rows: Vec<Vec<String>>) -> (Vec<String>, Vec<Vec<String
 
 /// Вспомогательная: извлечение заголовков и строк из CSV
 pub fn extract_header_rows<R: Read>(rdr: &mut Reader<R>) -> (Vec<String>, Vec<Vec<String>>) {
-    let headers = rdr.headers().unwrap().iter().map(|s| s.to_string()).collect();
+    let headers = rdr
+        .headers()
+        .unwrap()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     let mut rows = Vec::new();
     for record in rdr.records() {
         if let Ok(rec) = record {
@@ -56,7 +63,8 @@ pub fn extract_header_rows<R: Read>(rdr: &mut Reader<R>) -> (Vec<String>, Vec<Ve
 /// Разбор диапазона merged cells
 pub fn parse_merge_range(range: &str) -> Option<(usize, usize, usize, usize)> {
     fn col_to_num(col: &str) -> usize {
-        col.chars().fold(0, |acc, c| acc * 26 + ((c as u8 - b'A' + 1) as usize))
+        col.chars()
+            .fold(0, |acc, c| acc * 26 + ((c as u8 - b'A' + 1) as usize))
     }
 
     let parts: Vec<&str> = range.split(':').collect();

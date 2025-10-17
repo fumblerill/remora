@@ -1,15 +1,15 @@
+use crate::auth::handlers::Claims;
 use axum::{
-    extract::{State, Request},
-    http::{StatusCode},
+    extract::{Request, State},
+    http::StatusCode,
     middleware::Next,
     response::Response,
 };
 use axum_extra::extract::cookie::CookieJar;
-use jsonwebtoken::{decode, DecodingKey, Validation, Algorithm};
+use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use serde_json::json;
 use sqlx::Pool;
 use sqlx::Sqlite;
-use serde_json::json;
-use crate::auth::handlers::Claims;
 use std::env;
 
 /// Проверка роли пользователя по JWT-токену из куки.

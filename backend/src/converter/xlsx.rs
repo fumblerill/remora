@@ -1,11 +1,11 @@
+use crate::converter::utils::{open_zip, parse_merge_range, read_zip_file, xml_reader};
+use chrono::NaiveDate;
+use quick_xml::escape::unescape;
+use quick_xml::events::Event;
 use std::borrow::Cow;
 use std::collections::HashSet;
-use std::io::{self, Read, Seek, BufReader};
-use quick_xml::events::Event;
-use quick_xml::escape::unescape;
+use std::io::{self, BufReader, Read, Seek};
 use zip::read::ZipArchive;
-use chrono::NaiveDate;
-use crate::converter::utils::{open_zip, read_zip_file, xml_reader, parse_merge_range};
 
 /// Конвертация XLSX → Vec<Vec<String>>
 pub fn convert_xlsx_to_vec<R: Read + Seek>(reader: R) -> io::Result<Vec<Vec<String>>> {
@@ -32,12 +32,20 @@ fn read_shared_strings<R: Read + Seek>(zip: &mut ZipArchive<R>) -> io::Result<Ve
             Ok(Event::Start(ref e)) if e.name().as_ref() == b"si" => current_text.clear(),
             Ok(Event::Text(t)) => {
                 let raw = t.as_ref();
-                let text = unescape(std::str::from_utf8(raw).unwrap_or("")).unwrap_or(Cow::Borrowed(""));
+                let text =
+                    unescape(std::str::from_utf8(raw).unwrap_or("")).unwrap_or(Cow::Borrowed(""));
                 current_text.push_str(&text);
             }
-            Ok(Event::End(ref e)) if e.name().as_ref() == b"si" => strings.push(current_text.clone()),
+            Ok(Event::End(ref e)) if e.name().as_ref() == b"si" => {
+                strings.push(current_text.clone())
+            }
             Ok(Event::Eof) => break,
-            Err(e) => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("XML: {}", e))),
+            Err(e) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("XML: {}", e),
+                ))
+            }
             _ => {}
         }
         buf.clear();
@@ -52,7 +60,12 @@ fn read_sheet<R: Read + Seek>(
 ) -> io::Result<(Vec<Vec<String>>, HashSet<(usize, usize)>)> {
     let xml = match read_zip_file(zip, "xl/worksheets/sheet1.xml")? {
         Some(s) => s,
-        None => return Err(io::Error::new(io::ErrorKind::NotFound, "sheet1.xml не найден")),
+        None => {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "sheet1.xml не найден",
+            ))
+        }
     };
     let mut reader = xml_reader(&xml);
     let mut buf = Vec::with_capacity(4096);
@@ -69,7 +82,9 @@ fn read_sheet<R: Read + Seek>(
             Ok(Event::Start(ref e)) => match e.name().as_ref() {
                 b"row" => {
                     current_col = 0;
-                    let r_attr = e.attributes().flatten()
+                    let r_attr = e
+                        .attributes()
+                        .flatten()
                         .find(|a| a.key.as_ref() == b"r")
                         .and_then(|a| a.unescape_value().ok());
                     if let Some(s) = r_attr {
@@ -108,7 +123,8 @@ fn read_sheet<R: Read + Seek>(
             },
             Ok(Event::Text(t)) => {
                 let raw = t.as_ref();
-                let text = unescape(std::str::from_utf8(raw).unwrap_or("")).unwrap_or(Cow::Borrowed(""));
+                let text =
+                    unescape(std::str::from_utf8(raw).unwrap_or("")).unwrap_or(Cow::Borrowed(""));
                 current_value.push_str(&text);
             }
             Ok(Event::End(ref e)) if e.name().as_ref() == b"c" => {
@@ -127,7 +143,12 @@ fn read_sheet<R: Read + Seek>(
                 current_col += 1;
             }
             Ok(Event::Eof) => break,
-            Err(e) => return Err(io::Error::new(io::ErrorKind::InvalidData, format!("XML: {}", e))),
+            Err(e) => {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("XML: {}", e),
+                ))
+            }
             _ => {}
         }
         buf.clear();
@@ -136,16 +157,49 @@ fn read_sheet<R: Read + Seek>(
     // Отключаем merge при слишком больших таблицах
     if rows.len() < 10_000 {
         for (r1, c1, r2, c2) in merged_map {
-            if r1 < rows.len() && c1 < rows[r1].len() {
-                let val = rows[r1][c1].clone();
-                for r in r1..=r2 {
-                    for c in c1..=c2 {
-                        if !(r == r1 && c == c1) && r < rows.len() && c < rows[r].len() {
-                            rows[r][c] = String::new();
-                        }
+            if r1 >= rows.len() {
+                continue;
+            }
+
+            // гарантируем, что строки содержат достаточное количество столбцов
+            for r in r1..=r2.min(rows.len().saturating_sub(1)) {
+                let row = &mut rows[r];
+                if row.len() <= c2 {
+                    row.resize_with(c2 + 1, String::new);
+                }
+            }
+
+            if c1 >= rows[r1].len() {
+                continue;
+            }
+
+            let val = rows[r1][c1].clone();
+            for r in r1..=r2.min(rows.len().saturating_sub(1)) {
+                let row = &mut rows[r];
+                if row.len() <= c2 {
+                    row.resize_with(c2 + 1, String::new);
+                }
+
+                for c in c1..=c2 {
+                    if c >= row.len() {
+                        continue;
+                    }
+                    if !(r == r1 && c == c1) {
+                        row[c] = String::new();
                     }
                 }
-                rows[r1][c1] = val;
+            }
+
+            rows[r1][c1] = val;
+        }
+    }
+
+    // выравниваем длину строк — важно для выделения столбцов на фронтенде
+    let max_cols = rows.iter().map(|row| row.len()).max().unwrap_or(0);
+    if max_cols > 0 {
+        for row in &mut rows {
+            if row.len() < max_cols {
+                row.resize_with(max_cols, String::new);
             }
         }
     }
@@ -177,7 +231,9 @@ fn parse_cell_ref(s: &str) -> (usize, usize) {
             row.push(c);
         }
     }
-    let col_num = col.chars().fold(0, |acc, c| acc * 26 + ((c as u8 - b'A' + 1) as usize));
+    let col_num = col
+        .chars()
+        .fold(0, |acc, c| acc * 26 + ((c as u8 - b'A' + 1) as usize));
     let row_num = row.parse::<usize>().unwrap_or(1);
     (col_num - 1, row_num - 1)
 }

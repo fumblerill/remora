@@ -1,5 +1,5 @@
-use sqlx::{Pool, Sqlite};
 use crate::auth::models::User;
+use sqlx::{Pool, Sqlite};
 
 pub async fn get_user_by_login(pool: &Pool<Sqlite>, login: &str) -> Option<User> {
     sqlx::query_as::<_, User>("SELECT * FROM users WHERE login = ?")
@@ -9,7 +9,12 @@ pub async fn get_user_by_login(pool: &Pool<Sqlite>, login: &str) -> Option<User>
         .ok()?
 }
 
-pub async fn insert_user(pool: &Pool<Sqlite>, login: &str, hashed_password: &str, role: &str) -> sqlx::Result<()> {
+pub async fn insert_user(
+    pool: &Pool<Sqlite>,
+    login: &str,
+    hashed_password: &str,
+    role: &str,
+) -> sqlx::Result<()> {
     sqlx::query("INSERT INTO users (login, hashed_password, role) VALUES (?, ?, ?)")
         .bind(login)
         .bind(hashed_password)

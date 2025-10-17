@@ -1,9 +1,9 @@
-use std::io::{self, Read, Seek, Cursor};
 use csv::ReaderBuilder;
+use std::io::{self, Cursor, Read, Seek};
 
+pub mod ods;
 pub mod utils;
 pub mod xlsx;
-pub mod ods;
 
 use utils::extract_header_rows;
 
@@ -47,13 +47,17 @@ pub fn convert_csv_to_vec<R: Read>(mut reader: R) -> io::Result<(Vec<String>, Ve
 }
 
 /// Конвертация XLSX → Vec<Vec<String>>
-pub fn convert_xlsx_to_vec<R: Read + Seek>(reader: R) -> io::Result<(Vec<String>, Vec<Vec<String>>)> {
+pub fn convert_xlsx_to_vec<R: Read + Seek>(
+    reader: R,
+) -> io::Result<(Vec<String>, Vec<Vec<String>>)> {
     let rows = xlsx::convert_xlsx_to_vec(reader)?;
     Ok(utils::split_header_rows(rows))
 }
 
 /// Конвертация ODS → Vec<Vec<String>>
-pub fn convert_ods_to_vec<R: Read + Seek>(reader: R) -> io::Result<(Vec<String>, Vec<Vec<String>>)> {
+pub fn convert_ods_to_vec<R: Read + Seek>(
+    reader: R,
+) -> io::Result<(Vec<String>, Vec<Vec<String>>)> {
     let rows = ods::convert_ods_to_vec(reader)?;
     Ok(utils::split_header_rows(rows))
 }

@@ -52,7 +52,10 @@ async fn upload(mut multipart: Multipart) -> Json<UploadResponse> {
                 } else if ext_clone.ends_with(".ods") {
                     convert_ods_to_vec(reader)
                 } else {
-                    Err(std::io::Error::new(std::io::ErrorKind::InvalidInput, "unsupported"))
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidInput,
+                        "unsupported",
+                    ))
                 }
             })
             .await
@@ -61,7 +64,11 @@ async fn upload(mut multipart: Multipart) -> Json<UploadResponse> {
 
             let duration = start.elapsed();
             let nrows = rows_data.len();
-            let ncols = if !rows_data.is_empty() { rows_data[0].len() } else { 0 };
+            let ncols = if !rows_data.is_empty() {
+                rows_data[0].len()
+            } else {
+                0
+            };
             log_file_info(&filename, &ext, size_kb, nrows, ncols, duration);
 
             columns = cols;
@@ -75,7 +82,12 @@ async fn upload(mut multipart: Multipart) -> Json<UploadResponse> {
 fn log_file_info(name: &str, ext: &str, size_kb: f64, rows: usize, cols: usize, dur: Duration) {
     println!(
         "✅ {:<25} | {:<5} | {:>7.2} KB | Rows {:>6} | Cols {:>4} | {:>6.1} ms",
-        name, ext, size_kb, rows, cols, dur.as_millis()
+        name,
+        ext,
+        size_kb,
+        rows,
+        cols,
+        dur.as_millis()
     );
 }
 
@@ -117,7 +129,9 @@ async fn main() {
     // ───────────────────────────────
     // 🌐 Формируем CORS Origins
     // ───────────────────────────────
-    let cors_direct = env::var("CORS_ORIGINS").ok().map(|value| value.trim().to_string());
+    let cors_direct = env::var("CORS_ORIGINS")
+        .ok()
+        .map(|value| value.trim().to_string());
 
     let cors_raw = if let Some(origins) = cors_direct.as_ref().filter(|s| !s.is_empty()) {
         origins.to_owned()

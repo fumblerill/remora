@@ -1,17 +1,17 @@
-use axum::{
-    extract::{State, Json, Path},
-    http::{StatusCode, HeaderMap},
-};
-use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
-use serde_json::json;
-use sqlx::{Pool, Sqlite};
 use crate::auth::db;
 use crate::auth::models::{User, UserInput};
-use argon2::{Argon2, PasswordHasher, PasswordVerifier};
 use argon2::password_hash::SaltString;
+use argon2::{Argon2, PasswordHasher, PasswordVerifier};
+use axum::{
+    extract::{Json, Path, State},
+    http::{HeaderMap, StatusCode},
+};
+use axum_extra::extract::cookie::{Cookie, CookieJar, SameSite};
+use chrono::{Duration, Utc};
+use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 use rand_core::OsRng;
-use jsonwebtoken::{encode, decode, Header, EncodingKey, DecodingKey, Validation, Algorithm};
-use chrono::{Utc, Duration};
+use serde_json::json;
+use sqlx::{Pool, Sqlite};
 use std::env;
 use time::Duration as TimeDuration;
 
@@ -55,7 +55,10 @@ pub async fn setup(
         );
     }
 
-    (StatusCode::OK, Json(json!({"status": "SuperAdmin created"})))
+    (
+        StatusCode::OK,
+        Json(json!({"status": "SuperAdmin created"})),
+    )
 }
 
 pub async fn login(
@@ -83,7 +86,9 @@ pub async fn login(
     };
 
     let argon2 = Argon2::default();
-    let valid = argon2.verify_password(payload.password.as_bytes(), &parsed_hash).is_ok();
+    let valid = argon2
+        .verify_password(payload.password.as_bytes(), &parsed_hash)
+        .is_ok();
 
     if !valid {
         return (
@@ -106,7 +111,8 @@ pub async fn login(
         &Header::default(),
         &claims,
         &EncodingKey::from_secret(secret.as_bytes()),
-    ).unwrap();
+    )
+    .unwrap();
 
     let mut cookie = Cookie::new("remora_token", token);
     cookie.set_path("/");
@@ -187,7 +193,6 @@ pub async fn me(
         ),
     }
 }
-
 
 pub async fn logout(jar: CookieJar) -> (StatusCode, HeaderMap, Json<serde_json::Value>) {
     let mut cookie = Cookie::new("remora_token", "");
@@ -275,12 +280,14 @@ pub async fn create_user(
         .unwrap()
         .to_string();
 
-    match sqlx::query("INSERT INTO users (login, hashed_password, role, dashboards) VALUES (?, ?, ?, '[]')")
-        .bind(&payload.login)
-        .bind(&hashed)
-        .bind(&payload.role)
-        .execute(&pool)
-        .await
+    match sqlx::query(
+        "INSERT INTO users (login, hashed_password, role, dashboards) VALUES (?, ?, ?, '[]')",
+    )
+    .bind(&payload.login)
+    .bind(&hashed)
+    .bind(&payload.role)
+    .execute(&pool)
+    .await
     {
         Ok(_) => (StatusCode::OK, Json(json!({ "status": "created" }))),
         Err(e) => (
@@ -332,8 +339,13 @@ pub async fn delete_user(
         .execute(&pool)
         .await
     {
-        Ok(res) if res.rows_affected() > 0 => (StatusCode::OK, Json(json!({ "status": "deleted" }))),
-        Ok(_) => (StatusCode::NOT_FOUND, Json(json!({ "error": "User not found" }))),
+        Ok(res) if res.rows_affected() > 0 => {
+            (StatusCode::OK, Json(json!({ "status": "deleted" })))
+        }
+        Ok(_) => (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "User not found" })),
+        ),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(json!({ "error": e.to_string() })),
