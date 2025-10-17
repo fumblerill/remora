@@ -19,6 +19,8 @@ services:
     env_file: .env
     ports:
       - "3000:3000"
+    volumes:
+      - ./web/public/configs:/app/public/configs
     depends_on:
       - remora_backend
     restart: always

@@ -24,10 +24,12 @@ export default function ConfigSelectModal({
     const fetchConfigs = async () => {
       try {
         setLoading(true);
-        const res = await fetch("/configs/configs.json?ts=" + Date.now());
+        const res = await fetch("/api/list-dashboards?ts=" + Date.now(), {
+          cache: "no-store",
+        });
         if (!res.ok) throw new Error("Не удалось загрузить список конфигов");
         const json = await res.json();
-        setConfigs(json);
+        setConfigs(json.configs ?? []);
       } catch (err) {
         console.error(err);
         setConfigs([]);

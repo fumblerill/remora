@@ -36,9 +36,10 @@ export default function HomePage() {
         setUser(meData);
 
         // 2️⃣ Загружаем список всех конфигов
-        const cfgRes = await fetch("/configs/configs.json", { cache: "no-store" });
+        const cfgRes = await fetch("/api/list-dashboards", { cache: "no-store" });
         if (!cfgRes.ok) throw new Error("Не удалось загрузить конфиги");
-        const allConfigs: DashboardConfig[] = await cfgRes.json();
+        const cfgData = await cfgRes.json();
+        const allConfigs: DashboardConfig[] = cfgData.configs || [];
 
         // 3️⃣ Фильтруем только выданные пользователю
         const allowed = Array.isArray(meData.dashboards) ? meData.dashboards : [];

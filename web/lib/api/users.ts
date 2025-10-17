@@ -34,9 +34,10 @@ export async function fetchUsers(): Promise<any[]> {
 // 🧩 Получить список доступных дашбордов
 export async function fetchConfigs(): Promise<any[]> {
   try {
-    const res = await fetch("/configs/configs.json", { cache: "no-store" });
+    const res = await fetch("/api/list-dashboards", { cache: "no-store" });
     if (!res.ok) throw new Error("Не удалось загрузить конфиги");
-    return await res.json();
+    const data = await res.json();
+    return data.configs ?? [];
   } catch (err) {
     console.error("fetchConfigs error:", err);
     errorToast("Ошибка загрузки списка дашбордов");
