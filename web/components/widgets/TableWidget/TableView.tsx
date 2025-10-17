@@ -14,7 +14,7 @@ import {
   CellContext,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { ArrowUp, ArrowDown } from "lucide-react";
 
 interface TableViewProps {
@@ -124,6 +124,23 @@ function TanStackTable({
   });
 
   const parentRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  useEffect(() => {
+    const element = parentRef.current;
+    if (!element) return;
+
+    const updateSize = () => {
+      setContainerWidth(element.clientWidth);
+    };
+
+    updateSize();
+
+    const observer = new ResizeObserver(() => updateSize());
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, []);
 
   const rowVirtualizer = useVirtualizer({
     count: table.getRowModel().rows.length,
@@ -131,6 +148,14 @@ function TanStackTable({
     estimateSize: () => 32,
     overscan: 10,
   });
+
+  const totalColumns = table.getAllLeafColumns().length;
+  const totalSize = table.getTotalSize();
+  const useDistributedWidth =
+    containerWidth > 0 && totalColumns > 0 && totalSize < containerWidth;
+  const distributedWidth = useDistributedWidth
+    ? containerWidth / totalColumns
+    : undefined;
 
   return (
     <div
@@ -145,12 +170,21 @@ function TanStackTable({
           style={{ height: 64 }}
         >
           {table.getHeaderGroups().map((headerGroup) => (
-            <div key={headerGroup.id} className="flex">
+            <div
+              key={headerGroup.id}
+              className="flex"
+              style={{ width: useDistributedWidth ? "100%" : undefined }}
+            >
               {headerGroup.headers.map((header) => (
                 <div
                   key={header.id}
                   className="border-r px-2 py-1 relative flex flex-col justify-between"
-                  style={{ width: header.getSize() }}
+                  style={{
+                    width: useDistributedWidth
+                      ? `${distributedWidth}px`
+                      : header.getSize(),
+                    flex: useDistributedWidth ? "1 1 0" : undefined,
+                  }}
                 >
                   {/* название */}
                   <div
@@ -196,7 +230,7 @@ function TanStackTable({
         <div
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
-            width: table.getTotalSize(),
+            width: useDistributedWidth ? "100%" : totalSize,
             position: "relative",
           }}
         >
@@ -234,7 +268,10 @@ function TanStackTable({
                         isSelected ? "bg-blue-100" : ""
                       }`}
                       style={{
-                        width: cell.column.getSize(),
+                        width: useDistributedWidth
+                          ? `${distributedWidth}px`
+                          : cell.column.getSize(),
+                        flex: useDistributedWidth ? "1 1 0" : undefined,
                         userSelect: "none",
                       }}
                       onClick={() => {
