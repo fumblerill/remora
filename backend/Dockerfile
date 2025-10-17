@@ -5,6 +5,7 @@ WORKDIR /app
 
 # Копируем манифесты и исходники
 COPY backend/Cargo.toml backend/Cargo.lock ./
+COPY backend/vendor ./vendor
 COPY backend/src ./src
 
 # Копируем .env (опционально, если нужно во время сборки)
