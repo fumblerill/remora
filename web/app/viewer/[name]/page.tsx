@@ -4,18 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Configurator from "@/components/configurator/Configurator";
-import { Layout } from "react-grid-layout";
 import { Upload } from "lucide-react";
 import FileUploadModal from "@/components/ui/FileUploadModal";
 import { errorToast, successToast } from "@/lib/toast";
-
-type Widget = {
-  id: string;
-  type: "table" | "chart";
-  layout: Layout;
-  title?: string;
-  config?: any;
-};
+import type { Widget } from "@/components/widgets/hooks/WidgetContainer";
 
 export default function ViewerPage() {
   const { name } = useParams<{ name: string }>();
@@ -25,7 +17,6 @@ export default function ViewerPage() {
   const [dashboardName, setDashboardName] = useState("");
   const [isFileModal, setFileModal] = useState(false);
 
-  // 📂 Загрузка шаблона дашборда
   useEffect(() => {
     async function loadDashboard() {
       try {
@@ -36,7 +27,46 @@ export default function ViewerPage() {
         const dashboard = await res.json();
 
         if (!dashboard.widgets) throw new Error("Некорректный формат JSON");
-        setWidgets(dashboard.widgets);
+
+        const normalizedWidgets: Widget[] = dashboard.widgets.map((widget: Widget & { config?: any }) =>
+          widget.type === "report"
+            ? {
+                ...widget,
+                config:
+                  widget.config ?? {
+                    title: widget.title ?? "Отчёт",
+                    template: "",
+                    metrics: [],
+                  },
+              }
+            : widget,
+        );
+
+        if (!normalizedWidgets.some((widget) => widget.type === "report") && dashboard.report) {
+          const reportId = `report-${Date.now()}`;
+          const index = normalizedWidgets.length;
+          const x = (index % 2) * 6;
+          const y = Math.floor(index / 2) * 12;
+          normalizedWidgets.push({
+            id: reportId,
+            type: "report",
+            title: dashboard.report.title ?? "Отчёт",
+            layout: {
+              i: reportId,
+              x,
+              y,
+              w: 6,
+              h: 12,
+              minW: 3,
+              minH: 6,
+              maxW: 12,
+              maxH: 18,
+            },
+            config: dashboard.report,
+          });
+        }
+
+        setWidgets(normalizedWidgets);
         setDashboardName(dashboard.name || "");
       } catch (err) {
         console.error(err);
@@ -52,9 +82,7 @@ export default function ViewerPage() {
       <Header />
 
       <div className="flex flex-1 mt-4 gap-4">
-        {/* Боковая панель + верёвки */}
         <div className="relative">
-          {/* Верёвки */}
           <div className="absolute top-0 left-1/4 w-0.5 h-full bg-gray-300 z-0" />
           <div className="absolute top-0 right-1/4 w-0.5 h-full bg-gray-300 z-0" />
 
@@ -79,10 +107,9 @@ export default function ViewerPage() {
           </aside>
         </div>
 
-        {/* Рабочая зона */}
         <main className="flex-1 bg-white shadow-md rounded-lg p-4 border overflow-hidden">
           {data ? (
-            <Configurator widgets={widgets} data={data} setWidgets={setWidgets} isReadonly/>
+            <Configurator widgets={widgets} data={data} setWidgets={setWidgets} isReadonly />
           ) : (
             <div className="flex items-center justify-center h-full text-gray-400 text-lg">
               Ожидание данных...
@@ -91,7 +118,6 @@ export default function ViewerPage() {
         </main>
       </div>
 
-      {/* Модалка загрузки файла */}
       <FileUploadModal
         isOpen={isFileModal}
         onClose={() => setFileModal(false)}

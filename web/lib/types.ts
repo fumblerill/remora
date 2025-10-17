@@ -39,3 +39,34 @@ export interface PivotConfig {
   sort: PivotSort[];
   limit?: number | null;
 }
+
+export type ReportMetricAggregation =
+  | "count"
+  | "sum"
+  | "avg"
+  | "min"
+  | "max"
+  | "minDate"
+  | "maxDate";
+
+export type ReportMetricFormat = "number" | "integer" | "currency" | "date" | "datetime";
+
+export type ReportMetricConditionOperator = "eq" | "neq" | "contains" | "startsWith" | "endsWith";
+
+export interface ReportMetric {
+  id: string;
+  label: string;
+  field: string;
+  aggregation: ReportMetricAggregation;
+  format?: ReportMetricFormat;
+  description?: string;
+  conditionField?: string;
+  conditionOperator?: ReportMetricConditionOperator;
+  conditionValue?: string;
+}
+
+export interface ReportConfig {
+  template: string;
+  metrics: ReportMetric[];
+  title?: string;
+}

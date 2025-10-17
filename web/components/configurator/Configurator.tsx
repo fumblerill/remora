@@ -4,17 +4,9 @@ import RGL, { WidthProvider, Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { useState } from "react";
-import WidgetContainer from "../widgets/hooks/WidgetContainer";
+import WidgetContainer, { Widget } from "../widgets/hooks/WidgetContainer";
 
 const GridLayout = WidthProvider(RGL);
-
-type Widget = {
-  id: string;
-  type: "table" | "chart";
-  layout: Layout;
-  title?: string;
-  config?: any;
-};
 
 interface ConfiguratorProps {
   widgets: Widget[];

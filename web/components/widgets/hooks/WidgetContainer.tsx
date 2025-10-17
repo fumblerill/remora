@@ -3,10 +3,11 @@
 import React, { useRef, useLayoutEffect, useState } from "react";
 import TableWidget from "@/components/widgets/TableWidget";
 import ChartWidget from "@/components/widgets/ChartWidget";
+import ReportWidget from "@/components/widgets/ReportWidget";
 
-type Widget = {
+export type Widget = {
   id: string;
-  type: "table" | "chart";
+  type: "table" | "chart" | "report";
   title?: string;
   config?: any;
   layout: any;
@@ -16,7 +17,7 @@ interface WidgetContainerProps {
   widget: Widget;
   data: any[] | null;
   onUpdate: (id: string, updates: Partial<Widget>) => void;
-  isReadonly?: boolean; // ✅ теперь можно включить только просмотр
+  isReadonly?: boolean;
 }
 
 export default function WidgetContainer({
@@ -29,7 +30,6 @@ export default function WidgetContainer({
   const containerRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
 
-  // Автоматическая подстройка высоты (виртуализация таблицы)
   useLayoutEffect(() => {
     if (!containerRef.current) return;
     const el = containerRef.current;
@@ -44,8 +44,7 @@ export default function WidgetContainer({
     return () => observer.disconnect();
   }, []);
 
-  // Карта виджетов
-  const widgetsMap: Record<"table" | "chart", React.ReactElement> = {
+  const widgetsMap: Record<Widget["type"], React.ReactElement> = {
     table: (
       <TableWidget
         data={data ?? []}
@@ -65,6 +64,16 @@ export default function WidgetContainer({
         title={title || "Chart Widget"}
         onConfigChange={(newConfig: any) => onUpdate(id, { config: newConfig })}
         onTitleChange={(newTitle: string) => onUpdate(id, { title: newTitle })}
+        isReadonly={isReadonly}
+      />
+    ),
+    report: (
+      <ReportWidget
+        data={data ?? []}
+        config={config ?? null}
+        title={title || "Отчёт"}
+        onTitleChange={(newTitle) => onUpdate(id, { title: newTitle })}
+        onConfigChange={(nextConfig) => onUpdate(id, { config: nextConfig })}
         isReadonly={isReadonly}
       />
     ),

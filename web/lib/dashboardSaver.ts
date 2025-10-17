@@ -2,7 +2,7 @@ import { Layout } from "react-grid-layout";
 
 export interface DashboardWidget {
   id: string;
-  type: "table" | "chart";
+  type: "table" | "chart" | "report";
   title: string;
   config: any;
   layout: Layout;

@@ -136,12 +136,38 @@ export default function SettingsPage() {
         throw new Error("JSON должен содержать поля name и widgets");
       }
 
+      const widgetsPayload = Array.isArray(parsed.widgets) ? [...parsed.widgets] : [];
+
+      if (
+        parsed.report &&
+        !widgetsPayload.some((widget: any) => widget && widget.type === "report")
+      ) {
+        const reportId = `report-${Date.now()}`;
+        widgetsPayload.push({
+          id: reportId,
+          type: "report",
+          title: parsed.report.title ?? "Отчёт",
+          layout: {
+            i: reportId,
+            x: 0,
+            y: widgetsPayload.length * 12,
+            w: 6,
+            h: 12,
+            minW: 3,
+            minH: 6,
+            maxW: 12,
+            maxH: 18,
+          },
+          config: parsed.report,
+        });
+      }
+
       const res = await fetch("/api/save-dashboard", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: parsed.name,
-          widgets: parsed.widgets,
+          widgets: widgetsPayload,
         }),
       });
       const data = await res.json().catch(() => ({}));
