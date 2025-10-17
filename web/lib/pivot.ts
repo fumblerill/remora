@@ -6,6 +6,7 @@ import {
   PivotSort,
   PivotValueConfig,
   PivotAggregationType,
+  PivotFilterOperator,
 } from "@/lib/types";
 
 type AnyRecord = Record<string, any>;

@@ -76,25 +76,24 @@ export function normalizeChartConfig(
 
   const rawYAxis = Array.isArray(config?.yAxis) ? config!.yAxis : [];
   let yAxis = rawYAxis
-    .map((item) =>
-      typeof item === "string"
-        ? { field: item, agg: "sum" as const }
-        : item && typeof item === "object"
-          ? { field: item.field, agg: item.agg }
-          : null,
-    )
+    .map((item) => {
+      if (typeof item === "string") {
+        return { field: item, agg: "sum" as const };
+      }
+      if (item && typeof item === "object" && typeof item.field === "string") {
+        const agg =
+          item.agg && aggregationOptions.some((opt) => opt.value === item.agg)
+            ? item.agg
+            : undefined;
+        return { field: item.field, agg };
+      }
+      return null;
+    })
     .filter(
       (item): item is { field: string; agg?: "sum" | "count" | "avg" } =>
-        !!item && typeof item.field === "string",
+        item !== null && typeof item.field === "string",
     )
-    .filter((item) => fields.includes(item.field))
-    .map((item) => ({
-      field: item.field,
-      agg:
-        item.agg && aggregationOptions.some((opt) => opt.value === item.agg)
-          ? item.agg
-          : undefined,
-    }));
+    .filter((item) => fields.includes(item.field));
 
   if (type === "pie" && yAxis.length > 1) {
     yAxis = yAxis.slice(0, 1);
