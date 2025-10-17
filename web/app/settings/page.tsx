@@ -13,6 +13,7 @@ import { ArrowUp, ArrowDown, UserPlus, Shield, Trash2, LayoutDashboard } from "l
 import { useUserRole } from "@/lib/useUserRole";
 import { useUsers } from "@/lib/hooks/useUsers";
 import UserCreateModal from "@/components/settings/UserCreateModal";
+import DashboardSelectModal from "@/components/ui/DashboardSelectModal";
 
 export default function SettingsPage() {
   const { role, loading: roleLoading } = useUserRole();
@@ -28,6 +29,11 @@ export default function SettingsPage() {
   } = useUsers();
 
   const [creating, setCreating] = useState(false);
+  const [dashboardModal, setDashboardModal] = useState<{
+    userId: number;
+    selected: string[];
+    login: string;
+  } | null>(null);
   const isSuper = role === "SuperAdmin";
   const isAdmin = role === "Admin";
 
@@ -61,40 +67,28 @@ export default function SettingsPage() {
         header: "Дашборды",
         accessorKey: "dashboards",
         cell: ({ row }) => {
-          const [open, setOpen] = useState(false);
           const selected = row.original.dashboards || [];
-          if (!(isSuper || isAdmin)) return <span className="text-gray-500 text-sm">{selected.join(", ") || "—"}</span>;
+          if (!(isSuper || isAdmin)) {
+            return (
+              <span className="text-gray-500 text-sm">
+                {selected.join(", ") || "—"}
+              </span>
+            );
+          }
+
           return (
-            <div className="relative">
-              <button
-                onClick={() => setOpen(!open)}
-                className="border border-gray-300 rounded px-2 py-1 text-sm w-full text-left bg-white hover:bg-gray-50"
-              >
-                {selected.length ? selected.join(", ") : "Выбрать дашборды"}
-              </button>
-              {open && (
-                <div className="absolute top-full mt-1 left-0 w-56 bg-white border rounded shadow-md z-10 p-2 max-h-48 overflow-y-auto">
-                  {configs.map((cfg) => {
-                    const checked = selected.includes(cfg.name);
-                    return (
-                      <label key={cfg.file} className="flex items-center gap-2 px-2 py-1 hover:bg-gray-100 rounded cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            const updated = checked
-                              ? selected.filter((n: string) => n !== cfg.name)
-                              : [...selected, cfg.name];
-                            handleDashboardsChange(row.original.id, updated);
-                          }}
-                        />
-                        <span>{cfg.name}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <button
+              onClick={() =>
+                setDashboardModal({
+                  userId: row.original.id,
+                  selected: Array.isArray(selected) ? [...selected] : [],
+                  login: row.original.login,
+                })
+              }
+              className="border border-gray-300 rounded px-2 py-1 text-sm w-full text-left bg-white hover:bg-gray-50"
+            >
+              {selected.length ? selected.join(", ") : "Выбрать дашборды"}
+            </button>
           );
         },
       },
@@ -114,7 +108,7 @@ export default function SettingsPage() {
           ),
       },
     ],
-    [users, configs, role]
+    [users, configs, isSuper, isAdmin, handleRoleChange, handleDashboardsChange]
   );
 
   const table = useReactTable({
@@ -202,6 +196,20 @@ export default function SettingsPage() {
           </div>
         </main>
       </div>
+
+      <DashboardSelectModal
+        isOpen={Boolean(dashboardModal)}
+        login={dashboardModal?.login ?? ""}
+        configs={configs}
+        selected={dashboardModal?.selected ?? []}
+        onClose={() => setDashboardModal(null)}
+        onSubmit={async (updated) => {
+          if (!dashboardModal) return;
+          const userId = dashboardModal.userId;
+          await handleDashboardsChange(userId, updated);
+          setDashboardModal(null);
+        }}
+      />
 
       <UserCreateModal
         isOpen={creating}
