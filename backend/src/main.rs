@@ -108,10 +108,11 @@ fn push_origin(origins: &mut Vec<String>, origin: String) {
 async fn main() {
     dotenv::dotenv().ok();
 
-    let rust_port = env::var("RUST_PORT").unwrap_or_else(|_| "8080".to_string());
-    let front_port = env::var("FRONT_PORT").unwrap_or_else(|_| "3000".to_string());
+    const RUST_PORT: &str = "8080";
+    const FRONT_PORT: &str = "3000";
+
     let base_url = env::var("BASE_URL").unwrap_or_else(|_| "http://localhost".to_string());
-    let bind_addr = format!("0.0.0.0:{}", rust_port);
+    let bind_addr = format!("0.0.0.0:{}", RUST_PORT);
 
     // ───────────────────────────────
     // 🌐 Формируем CORS Origins
@@ -128,8 +129,8 @@ async fn main() {
     };
 
     let cors_string = cors_raw
-        .replace("{FRONT_PORT}", &front_port)
-        .replace("{RUST_PORT}", &rust_port)
+        .replace("{FRONT_PORT}", FRONT_PORT)
+        .replace("{RUST_PORT}", RUST_PORT)
         .replace("{BASE_URL}", &base_url);
 
     let mut origin_strings: Vec<String> = cors_string
@@ -150,7 +151,7 @@ async fn main() {
         }
     }
 
-    let derived_front_origin = append_port(&base_url, &front_port);
+    let derived_front_origin = append_port(&base_url, FRONT_PORT);
     push_origin(&mut origin_strings, derived_front_origin);
 
     let mut allowed_origins = Vec::new();

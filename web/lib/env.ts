@@ -1,9 +1,7 @@
 // ✅ Централизованное управление переменными окружения Remora
 
-const FRONT_PORT =
-  process.env.NEXT_PUBLIC_FRONT_PORT || process.env.FRONT_PORT || "3000";
-const RUST_PORT =
-  process.env.NEXT_PUBLIC_RUST_PORT || process.env.RUST_PORT || "8080";
+const DEFAULT_FRONT_PORT = "3000";
+const DEFAULT_RUST_PORT = "8080";
 
 const DEFAULT_BASE_URL =
   process.env.NEXT_PUBLIC_BASE_URL ||
@@ -12,6 +10,16 @@ const DEFAULT_BASE_URL =
 
 const API_URL_OVERRIDE =
   process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "";
+
+const API_BASE_PATH =
+  process.env.NEXT_PUBLIC_API_BASE && process.env.NEXT_PUBLIC_API_BASE.trim().length > 0
+    ? process.env.NEXT_PUBLIC_API_BASE
+    : "";
+
+const INTERNAL_API_URL =
+  process.env.INTERNAL_API_URL ||
+  process.env.API_URL ||
+  `http://127.0.0.1:${DEFAULT_RUST_PORT}`;
 
 const FRONTEND_ORIGIN_OVERRIDE =
   process.env.NEXT_PUBLIC_FRONTEND_ORIGIN ||
@@ -34,12 +42,20 @@ function appendPort(origin: string, port: string): string {
 /**
  * 🌍 URL Rust-бэкенда
  */
-export function getApiUrl(): string {
+export function getApiUrl(options: { internal?: boolean } = {}): string {
+  if (options.internal) {
+    return INTERNAL_API_URL;
+  }
+
   if (API_URL_OVERRIDE) {
     return API_URL_OVERRIDE;
   }
 
-  return appendPort(DEFAULT_BASE_URL, RUST_PORT);
+  if (process.env.NEXT_PUBLIC_API_BASE) {
+    return process.env.NEXT_PUBLIC_API_BASE;
+  }
+
+  return API_BASE_PATH;
 }
 
 /**
@@ -50,7 +66,7 @@ export function getFrontendOrigin(): string {
     return FRONTEND_ORIGIN_OVERRIDE;
   }
 
-  return appendPort(DEFAULT_BASE_URL, FRONT_PORT);
+  return appendPort(DEFAULT_BASE_URL, DEFAULT_FRONT_PORT);
 }
 
 /**
@@ -65,9 +81,8 @@ export function getJwtSecret(): string {
  */
 console.log("🧩 Remora env summary →", {
   NODE_ENV: process.env.NODE_ENV,
-  FRONT_PORT,
-  RUST_PORT,
   API_URL: getApiUrl(),
+  INTERNAL_API_URL: getApiUrl({ internal: true }),
   FRONTEND_ORIGIN: getFrontendOrigin(),
   BASE_URL: DEFAULT_BASE_URL,
 });

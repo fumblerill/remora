@@ -30,7 +30,7 @@ COPY .env .env
 
 RUN npm ci --omit=dev
 
-EXPOSE ${FRONT_PORT}
+EXPOSE 3000
 
 # ✅ set -a экспортирует все переменные из .env
-CMD ["bash", "-c", "set -a && source .env && set +a && exec npx next start -p $FRONT_PORT"]
+CMD ["bash", "-c", "set -a && source .env && set +a && exec npx next start -p 3000"]

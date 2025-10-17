@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "bash -c 'source ../.env && next dev -p $FRONT_PORT'",
+    "dev": "bash -c 'source ../.env && next dev -p 3000'",
     "build": "bash -c 'source ../.env && next build'",
-    "start": "bash -c 'source ../.env && next start -p $FRONT_PORT'",
+    "start": "bash -c 'source ../.env && next start -p 3000'",
     "lint": "biome check",
     "format": "biome format --write"
   },

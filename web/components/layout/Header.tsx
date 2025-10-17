@@ -3,7 +3,6 @@
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUserRole } from "@/lib/useUserRole";
-import { getApiUrl } from "@/lib/env"; // ✅ централизованная логика API URL
 import { useState } from "react";
 
 export default function Header() {
@@ -11,8 +10,6 @@ export default function Header() {
   const router = useRouter();
   const { role, loading, refresh } = useUserRole();
   const [logoutLoading, setLogoutLoading] = useState(false);
-
-  const API = getApiUrl(); // 🌍 теперь это общий способ получения API URL
 
   let sectionName = "Главная";
   if (pathname.startsWith("/admin")) sectionName = "Админ-панель";
@@ -25,7 +22,7 @@ export default function Header() {
   const handleLogout = async () => {
     try {
       setLogoutLoading(true);
-      const res = await fetch(`${API}/api/logout`, {
+      const res = await fetch(`/api/logout`, {
         method: "POST",
         credentials: "include",
       });

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { getApiUrl } from "@/lib/env"; // ✅ единый источник API URL
 
 export default function SetupPage() {
   const router = useRouter();
@@ -11,15 +10,13 @@ export default function SetupPage() {
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const API = getApiUrl(); // 🌍 получаем корректный URL для backend
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setStatus(null);
 
     try {
-      const res = await fetch(`${API}/api/setup`, {
+      const res = await fetch(`/api/setup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ login, password }),

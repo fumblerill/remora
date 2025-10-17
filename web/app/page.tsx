@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
 import Link from "next/link";
-import { getApiUrl } from "@/lib/env"; // ✅ централизованный источник API URL
 
 interface DashboardConfig {
   name: string;
@@ -22,13 +21,11 @@ export default function HomePage() {
   const [configs, setConfigs] = useState<DashboardConfig[]>([]);
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
-  const API = getApiUrl(); // 🌍 теперь API определяется централизованно
-
   useEffect(() => {
     async function loadData() {
       try {
         // 1️⃣ Получаем текущего пользователя
-        const meRes = await fetch(`${API}/api/me`, {
+        const meRes = await fetch(`/api/me`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -59,7 +56,7 @@ export default function HomePage() {
     }
 
     loadData();
-  }, [API]);
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col">

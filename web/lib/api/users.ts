@@ -1,10 +1,6 @@
 "use client";
 
 import { successToast, errorToast } from "@/lib/toast";
-import { getApiUrl } from "@/lib/env";
-
-const API = getApiUrl(); // 🌍 Универсальный API URL
-
 // 🧩 Универсальный fetch с перехватом 401
 async function apiFetch(url: string, options: RequestInit = {}) {
   const res = await fetch(url, {
@@ -24,7 +20,7 @@ async function apiFetch(url: string, options: RequestInit = {}) {
 // 🔄 Получить всех пользователей
 export async function fetchUsers(): Promise<any[]> {
   try {
-    const res = await apiFetch(`${API}/api/users/list`);
+    const res = await apiFetch(`/api/users/list`);
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Ошибка загрузки пользователей");
     return data.users;
@@ -51,7 +47,7 @@ export async function fetchConfigs(): Promise<any[]> {
 // ➕ Создать пользователя
 export async function createUser(login: string, password: string, role: string) {
   try {
-    const res = await apiFetch(`${API}/api/users/create`, {
+    const res = await apiFetch(`/api/users/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ login, password, role }),
@@ -72,7 +68,7 @@ export async function createUser(login: string, password: string, role: string) 
 // 🔁 Изменить роль
 export async function updateRole(id: number, role: string) {
   try {
-    const res = await apiFetch(`${API}/api/users/update`, {
+    const res = await apiFetch(`/api/users/update`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, role }),
@@ -93,7 +89,7 @@ export async function updateRole(id: number, role: string) {
 // 🧩 Обновить дашборды
 export async function updateDashboards(id: number, dashboards: string[]) {
   try {
-    const res = await apiFetch(`${API}/api/users/update`, {
+    const res = await apiFetch(`/api/users/update`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, dashboards: JSON.stringify(dashboards) }),
@@ -114,7 +110,7 @@ export async function updateDashboards(id: number, dashboards: string[]) {
 // 🗑️ Удалить пользователя
 export async function deleteUser(id: number) {
   try {
-    const res = await apiFetch(`${API}/api/users/delete/${id}`, {
+    const res = await apiFetch(`/api/users/delete/${id}`, {
       method: "DELETE",
     });
 

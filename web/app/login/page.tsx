@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getApiUrl } from "@/lib/env";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,8 +9,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const API = getApiUrl();
 
   // 🔎 Проверяем, есть ли токен в cookie
   useEffect(() => {
@@ -30,7 +27,7 @@ export default function LoginPage() {
     setStatus(null);
 
     try {
-      const res = await fetch(`${API}/api/login`, {
+      const res = await fetch(`/api/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
