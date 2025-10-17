@@ -42,6 +42,10 @@ const backendRewrites =
           destination: withInternal("/api/login"),
         },
         {
+          source: "/api/export-table",
+          destination: withInternal("/api/export-table"),
+        },
+        {
           source: "/api/logout",
           destination: withInternal("/api/logout"),
         },

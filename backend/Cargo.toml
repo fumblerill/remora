@@ -22,6 +22,9 @@ tower-http = { version = "0.6.6", features = ["cors"] }
 csv = "1"
 zip = "0.6"
 quick-xml = "0.36"
+rust_xlsxwriter = "0.66"
+spreadsheet-ods = "0.17"
+icu_locid = "1"
 
 # --- Time & Dates ---
 chrono = { version = "0.4", features = ["serde"] }
@@ -38,3 +41,6 @@ jsonwebtoken = "9"
 # --- Utilities ---
 anyhow = "1"
 dotenv = "0.15"
+
+[patch.crates-io]
+color-rs = { path = "vendor/color-rs-0.8.0" }

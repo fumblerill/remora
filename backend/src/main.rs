@@ -1,10 +1,11 @@
 use axum::{
     extract::{DefaultBodyLimit, Multipart},
-    http::{HeaderValue, Method},
+    http::{header, HeaderValue, Method, StatusCode},
+    response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     env,
     io::{BufReader, Cursor},
@@ -20,12 +21,25 @@ use converter::{convert_csv_to_vec, convert_ods_to_vec, convert_xlsx_to_vec};
 mod auth;
 use auth::setup_router;
 
+mod exporter;
+use exporter::{build_ods, build_xlsx};
+
 mod middleware;
 
 #[derive(Serialize)]
 struct UploadResponse {
     columns: Vec<String>,
     rows: Vec<Vec<String>>,
+}
+
+#[derive(Deserialize)]
+struct ExportRequest {
+    columns: Vec<String>,
+    rows: Vec<Vec<String>>,
+    #[serde(default)]
+    format: Option<String>,
+    #[serde(default)]
+    filename: Option<String>,
 }
 
 async fn upload(mut multipart: Multipart) -> Json<UploadResponse> {
@@ -77,6 +91,73 @@ async fn upload(mut multipart: Multipart) -> Json<UploadResponse> {
     }
 
     Json(UploadResponse { columns, rows })
+}
+
+async fn export_table(
+    Json(payload): Json<ExportRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let format = payload
+        .format
+        .as_deref()
+        .map(|f| f.to_ascii_lowercase())
+        .unwrap_or_else(|| "xlsx".to_string());
+
+    let filename = payload
+        .filename
+        .unwrap_or_else(|| format!("export.{}", format));
+
+    let (bytes, mime) = match format.as_str() {
+        "ods" => (
+            build_ods(&payload.columns, &payload.rows).map_err(|err| internal_error("ODS", err))?,
+            "application/vnd.oasis.opendocument.spreadsheet",
+        ),
+        "xlsx" | _ => (
+            build_xlsx(&payload.columns, &payload.rows)
+                .map_err(|err| internal_error("XLSX", err))?,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ),
+    };
+
+    let mut headers = axum::http::HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_str(mime).unwrap_or(HeaderValue::from_static("application/octet-stream")),
+    );
+
+    let disposition = format!("attachment; filename=\"{}\"", sanitize_filename(&filename));
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        HeaderValue::from_str(&disposition)
+            .unwrap_or(HeaderValue::from_static("attachment; filename=\"export\"")),
+    );
+
+    Ok((headers, bytes))
+}
+
+fn sanitize_filename(name: &str) -> String {
+    let cleaned: String = name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    if cleaned.is_empty() {
+        "export".to_string()
+    } else {
+        cleaned
+    }
+}
+
+fn internal_error(label: &str, err: anyhow::Error) -> (StatusCode, String) {
+    eprintln!("❌ export error ({}): {:?}", label, err);
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "Не удалось сформировать файл".into(),
+    )
 }
 
 fn log_file_info(name: &str, ext: &str, size_kb: f64, rows: usize, cols: usize, dur: Duration) {
@@ -206,7 +287,8 @@ async fn main() {
     // ───────────────────────────────
     let app = Router::new()
         .route("/api/upload", post(upload))
-        .merge(auth::setup_router().await)
+        .route("/api/export-table", post(export_table))
+        .merge(setup_router().await)
         .route("/api/ping", get(|| async { "pong" })) // тестовый endpoint
         .layer(DefaultBodyLimit::max(50 * 1024 * 1024))
         .layer(cors); // 👈 CORS добавлен последним — применяется ко всем роутам
