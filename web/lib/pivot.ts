@@ -43,7 +43,10 @@ function sanitizeFieldList(fields: unknown, available: string[]): string[] {
     .filter((f) => f && (available.length === 0 || available.includes(f)));
 }
 
-function sanitizeValues(values: unknown, available: string[]): PivotValueConfig[] {
+function sanitizeValues(
+  values: unknown,
+  available: string[],
+): PivotValueConfig[] {
   if (!Array.isArray(values)) return [];
   return values
     .map((value) => {
@@ -51,30 +54,43 @@ function sanitizeValues(values: unknown, available: string[]): PivotValueConfig[
         return { field: value, agg: defaultAggregation };
       }
       if (value && typeof value === "object") {
-        const field = typeof (value as AnyRecord).field === "string" ? (value as AnyRecord).field : "";
+        const field =
+          typeof (value as AnyRecord).field === "string"
+            ? (value as AnyRecord).field
+            : "";
         if (!field) return null;
-        const agg = (value as AnyRecord).agg as PivotAggregationType | undefined;
+        const agg = (value as AnyRecord).agg as
+          | PivotAggregationType
+          | undefined;
         const alias =
-          typeof (value as AnyRecord).alias === "string" ? (value as AnyRecord).alias : undefined;
+          typeof (value as AnyRecord).alias === "string"
+            ? (value as AnyRecord).alias
+            : undefined;
         return {
           field,
-          agg: agg && ["sum", "count", "avg", "min", "max"].includes(agg) ? agg : defaultAggregation,
+          agg:
+            agg && ["sum", "count", "avg", "min", "max"].includes(agg)
+              ? agg
+              : defaultAggregation,
           alias,
         };
       }
       return null;
     })
-    .filter((v): v is PivotValueConfig => Boolean(v && (available.length === 0 || available.includes(v.field))));
+    .filter((v): v is PivotValueConfig =>
+      Boolean(v && (available.length === 0 || available.includes(v.field))),
+    );
 }
 
 function sanitizeFilters(filters: unknown, available: string[]): PivotFilter[] {
   if (!Array.isArray(filters)) return [];
   return filters
-    .map((filter) => {
+    .map((filter): PivotFilter | null => {
       if (!filter || typeof filter !== "object") return null;
       const column = (filter as AnyRecord).column;
       const operator = (filter as AnyRecord).operator;
-      if (typeof column !== "string" || typeof operator !== "string") return null;
+      if (typeof column !== "string" || typeof operator !== "string")
+        return null;
       const allowedOps = [
         "eq",
         "neq",
@@ -85,24 +101,27 @@ function sanitizeFilters(filters: unknown, available: string[]): PivotFilter[] {
         "contains",
         "not_contains",
         "in",
+        "starts_with",
+        "ends_with",
       ];
       if (!allowedOps.includes(operator)) return null;
+      const op = operator as PivotFilterOperator;
       const value = (filter as AnyRecord).value;
       if (Array.isArray(value)) {
         return {
           column,
-          operator,
+          operator: op,
           value: value.filter(
-            (item) => typeof item === "string" || typeof item === "number"
+            (item) => typeof item === "string" || typeof item === "number",
           ) as Array<string | number>,
         };
       }
       if (typeof value === "string" || typeof value === "number") {
-        return { column, operator, value };
+        return { column, operator: op, value };
       }
-      return { column, operator, value: "" };
+      return { column, operator: op, value: "" };
     })
-    .filter((f): f is PivotFilter => Boolean(f));
+    .filter((f): f is PivotFilter => f !== null);
 }
 
 function sanitizeSort(sort: unknown): PivotSort[] {
@@ -121,8 +140,10 @@ function sanitizeSort(sort: unknown): PivotSort[] {
 
 export function normalizePivotConfig(
   input: Partial<PivotConfig> | AnyRecord | undefined | null,
-  sampleData: AnyRecord[] = []
+  sampleData: AnyRecord[] = [],
+  options: { ensureValues?: boolean } = {},
 ): PivotConfig {
+  const ensureValues = options.ensureValues ?? true;
   const fieldSet = new Set<string>();
   sampleData.forEach((row) => {
     if (!row || typeof row !== "object") return;
@@ -133,11 +154,13 @@ export function normalizePivotConfig(
 
   const availableFields = Array.from(fieldSet);
   if (!input) {
+    const defaultValues =
+      ensureValues && availableFields[0]
+        ? [{ field: availableFields[0], agg: defaultAggregation }]
+        : [];
     return {
       ...DEFAULT_CONFIG,
-      values: availableFields[0]
-        ? [{ field: availableFields[0], agg: defaultAggregation }]
-        : [],
+      values: defaultValues,
     };
   }
 
@@ -145,7 +168,10 @@ export function normalizePivotConfig(
   if ("available" in input || "cols" in input) {
     const legacy = input as AnyRecord;
     const rows = sanitizeFieldList(legacy.rows, availableFields);
-    const columns = sanitizeFieldList(legacy.cols ?? legacy.columns, availableFields);
+    const columns = sanitizeFieldList(
+      legacy.cols ?? legacy.columns,
+      availableFields,
+    );
     const values = sanitizeValues(legacy.values, availableFields);
 
     return {
@@ -167,12 +193,13 @@ export function normalizePivotConfig(
     postFilters: sanitizeFilters((input as AnyRecord).postFilters, []),
     sort: sanitizeSort((input as AnyRecord).sort),
     limit:
-      typeof (input as AnyRecord).limit === "number" && (input as AnyRecord).limit > 0
+      typeof (input as AnyRecord).limit === "number" &&
+      (input as AnyRecord).limit > 0
         ? (input as AnyRecord).limit
         : null,
   };
 
-  if (!config.values.length && availableFields[0]) {
+  if (!config.values.length && availableFields[0] && ensureValues) {
     config.values = [{ field: availableFields[0], agg: defaultAggregation }];
   }
 
@@ -209,6 +236,17 @@ function evaluateFilter(value: any, filter: PivotFilter): boolean {
     return operator === "contains" ? result : !result;
   }
 
+  if (operator === "starts_with" || operator === "ends_with") {
+    const haystack = String(value ?? "").toLowerCase();
+    const needle = String(filterValue ?? "").toLowerCase();
+    if (!needle.length) return true;
+    const result =
+      operator === "starts_with"
+        ? haystack.startsWith(needle)
+        : haystack.endsWith(needle);
+    return result;
+  }
+
   const numericOps = ["gt", "gte", "lt", "lte"];
   if (numericOps.includes(operator)) {
     const numValue = typeof value === "number" ? value : Number(value);
@@ -234,14 +272,21 @@ function evaluateFilter(value: any, filter: PivotFilter): boolean {
 function applyFilters(data: AnyRecord[], filters: PivotFilter[]): AnyRecord[] {
   if (!filters.length) return data;
   return data.filter((row) =>
-    filters.every((filter) => evaluateFilter(row[filter.column], filter))
+    filters.every((filter) => evaluateFilter(row[filter.column], filter)),
   );
 }
 
-function aggregateRows(rows: AnyRecord[], field: string, agg: PivotAggregationType): number {
+function aggregateRows(
+  rows: AnyRecord[],
+  field: string,
+  agg: PivotAggregationType,
+): number {
   if (agg === "count") {
     if (field === "*") return rows.length;
-    return rows.filter((row) => row[field] !== undefined && row[field] !== null && row[field] !== "").length;
+    return rows.filter(
+      (row) =>
+        row[field] !== undefined && row[field] !== null && row[field] !== "",
+    ).length;
   }
 
   const numeric = rows
@@ -266,16 +311,12 @@ function aggregateRows(rows: AnyRecord[], field: string, agg: PivotAggregationTy
 
 function formatColumnLabel(columns: string[], values: any[]): string {
   if (!columns.length) return "";
-  return columns
-    .map((col, idx) => `${col}: ${values[idx] ?? "—"}`)
-    .join(" • ");
+  return columns.map((col, idx) => `${col}: ${values[idx] ?? "—"}`).join(" • ");
 }
 
 function makeColumnKey(columns: string[], values: any[]): string {
   if (!columns.length) return "__all__";
-  return columns
-    .map((col, idx) => `${col}=${values[idx] ?? "—"}`)
-    .join("||");
+  return columns.map((col, idx) => `${col}=${values[idx] ?? "—"}`).join("||");
 }
 
 function defaultAlias(value: PivotValueConfig): string {
@@ -308,15 +349,22 @@ function sortData(rows: AnyRecord[], sort: PivotSort[]) {
 
 function getComparableValue(row: AnyRecord, column: string): any {
   if (column in row) return row[column];
-  const totals = (row as AnyRecord).__pivotTotals as Record<string, any> | undefined;
+  const totals = (row as AnyRecord).__pivotTotals as
+    | Record<string, any>
+    | undefined;
   if (totals && column in totals) return totals[column];
   return undefined;
 }
 
-export function applyPivot(data: AnyRecord[], config: PivotConfig): PivotApplyResult {
+export function applyPivot(
+  data: AnyRecord[],
+  config: PivotConfig,
+): PivotApplyResult {
   const filteredData = applyFilters(data, config.filters);
   const isPivot =
-    config.rows.length > 0 || config.columns.length > 0 || config.values.length > 0;
+    config.rows.length > 0 ||
+    config.columns.length > 0 ||
+    config.values.length > 0;
 
   if (!isPivot) {
     const dimensions = filteredData.length ? Object.keys(filteredData[0]) : [];
@@ -377,7 +425,11 @@ export function applyPivot(data: AnyRecord[], config: PivotConfig): PivotApplyRe
 
     for (const valueConfig of config.values) {
       const alias = valueConfig.alias?.trim() || defaultAlias(valueConfig);
-      totals[alias] = aggregateRows(group.rows, valueConfig.field, valueConfig.agg);
+      totals[alias] = aggregateRows(
+        group.rows,
+        valueConfig.field,
+        valueConfig.agg,
+      );
     }
 
     for (const columnEntry of columnMap.values()) {
@@ -386,13 +438,17 @@ export function applyPivot(data: AnyRecord[], config: PivotConfig): PivotApplyRe
           ? group.rows
           : group.rows.filter((row) =>
               config.columns.every(
-                (col, idx) => row[col] === columnEntry.values[idx]
-              )
+                (col, idx) => row[col] === columnEntry.values[idx],
+              ),
             );
 
       for (const valueConfig of config.values) {
         const alias = valueConfig.alias?.trim() || defaultAlias(valueConfig);
-        const result = aggregateRows(subset, valueConfig.field, valueConfig.agg);
+        const result = aggregateRows(
+          subset,
+          valueConfig.field,
+          valueConfig.agg,
+        );
         const key =
           columnEntry.key === "__all__"
             ? alias

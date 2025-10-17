@@ -65,7 +65,11 @@ function cloneConfig(config: PivotConfig): PivotConfig {
   };
 }
 
-export default function TableEditor({ data, config, onConfigChange }: TableEditorProps) {
+export default function TableEditor({
+  data,
+  config,
+  onConfigChange,
+}: TableEditorProps) {
   if (!data || data.length === 0) return <div>Нет данных для конфигурации</div>;
 
   const fields = useMemo(() => {
@@ -80,14 +84,16 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
   }, [data]);
 
   const [pivotConfig, setPivotConfig] = useState<PivotConfig>(() =>
-    normalizePivotConfig(config, data)
+    normalizePivotConfig(config, data, { ensureValues: false }),
   );
 
   const lastExternalConfig = useRef<string | null>(JSON.stringify(pivotConfig));
   const lastEmittedConfig = useRef<string>(JSON.stringify(pivotConfig));
 
   useEffect(() => {
-    const normalized = normalizePivotConfig(config, data);
+    const normalized = normalizePivotConfig(config, data, {
+      ensureValues: false,
+    });
     const serialized = JSON.stringify(normalized);
     if (serialized === lastExternalConfig.current) {
       return;
@@ -119,25 +125,31 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
     setPivotConfig((prev) => {
       const draft = updater(cloneConfig(prev));
 
-      const aggregateAliases = new Set(draft.values.map((value) => defaultAlias(value)));
+      const aggregateAliases = new Set(
+        draft.values.map((value) => defaultAlias(value)),
+      );
       const fieldSet = new Set(fields);
 
       draft.postFilters = draft.postFilters.filter((filter) =>
-        aggregateAliases.has(filter.column)
+        aggregateAliases.has(filter.column),
       );
       draft.sort = draft.sort.filter(
         (rule) =>
           draft.rows.includes(rule.column) ||
           aggregateAliases.has(rule.column) ||
-          fieldSet.has(rule.column)
+          fieldSet.has(rule.column),
       );
 
       return draft;
     });
   };
 
-  const availableRowFields = fields.filter((f) => !pivotConfig.rows.includes(f));
-  const availableColumnFields = fields.filter((f) => !pivotConfig.columns.includes(f));
+  const availableRowFields = fields.filter(
+    (f) => !pivotConfig.rows.includes(f),
+  );
+  const availableColumnFields = fields.filter(
+    (f) => !pivotConfig.columns.includes(f),
+  );
 
   const availableFilters = fields;
   const availableAggregates = pivotConfig.values.map((value) => ({
@@ -166,14 +178,14 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
   const updateFieldList = (
     type: "rows" | "columns",
     index: number,
-    newValue: string
+    newValue: string,
   ) => {
     updateConfig((prev) => {
       const nextList = [...prev[type]];
       nextList[index] = newValue;
       // удаляем дубли
       const unique = nextList.filter(
-        (field, idx) => field && nextList.indexOf(field) === idx
+        (field, idx) => field && nextList.indexOf(field) === idx,
       );
       return { ...prev, [type]: unique };
     });
@@ -187,7 +199,11 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
     });
   };
 
-  const moveField = (type: "rows" | "columns", index: number, delta: number) => {
+  const moveField = (
+    type: "rows" | "columns",
+    index: number,
+    delta: number,
+  ) => {
     updateConfig((prev) => {
       const nextList = [...prev[type]];
       const target = index + delta;
@@ -209,7 +225,10 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
     }));
   };
 
-  const updateAggregation = (index: number, patch: Partial<PivotValueConfig>) => {
+  const updateAggregation = (
+    index: number,
+    patch: Partial<PivotValueConfig>,
+  ) => {
     updateConfig((prev) => {
       const nextValues = [...prev.values];
       const current = nextValues[index];
@@ -220,11 +239,13 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
       const afterAlias = defaultAlias(nextValues[index]);
 
       const nextPostFilters = prev.postFilters.map((filter) =>
-        filter.column === beforeAlias ? { ...filter, column: afterAlias } : filter
+        filter.column === beforeAlias
+          ? { ...filter, column: afterAlias }
+          : filter,
       );
 
       const nextSort = prev.sort.map((rule) =>
-        rule.column === beforeAlias ? { ...rule, column: afterAlias } : rule
+        rule.column === beforeAlias ? { ...rule, column: afterAlias } : rule,
       );
 
       return {
@@ -245,7 +266,7 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
       nextValues.splice(index, 1);
 
       const nextPostFilters = prev.postFilters.filter(
-        (filter) => filter.column !== alias
+        (filter) => filter.column !== alias,
       );
 
       const nextSort = prev.sort.filter((rule) => rule.column !== alias);
@@ -261,7 +282,9 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
 
   const addFilter = (type: "filters" | "postFilters") => {
     const baseColumn =
-      type === "filters" ? fields[0] ?? "" : availableAggregates[0]?.key ?? "";
+      type === "filters"
+        ? (fields[0] ?? "")
+        : (availableAggregates[0]?.key ?? "");
     if (!baseColumn) return;
 
     updateConfig((prev) => ({
@@ -280,7 +303,7 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
   const updateFilter = (
     type: "filters" | "postFilters",
     index: number,
-    patch: Partial<PivotFilter>
+    patch: Partial<PivotFilter>,
   ) => {
     updateConfig((prev) => {
       const next = [...prev[type]];
@@ -288,7 +311,8 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
       if (!current) return prev;
 
       let value = patch.value ?? current.value;
-      const operator = (patch.operator ?? current.operator) as PivotFilterOperator;
+      const operator = (patch.operator ??
+        current.operator) as PivotFilterOperator;
 
       if (operator === "in") {
         if (typeof value === "string") {
@@ -334,10 +358,7 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
   const addSortRule = () => {
     updateConfig((prev) => {
       const firstOption =
-        prev.rows[0] ??
-        availableAggregates[0]?.key ??
-        fields[0] ??
-        "";
+        prev.rows[0] ?? availableAggregates[0]?.key ?? fields[0] ?? "";
       if (!firstOption) return prev;
       return {
         ...prev,
@@ -375,9 +396,7 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
     <div className="space-y-6">
       {/* Группировки */}
       <section className="bg-white rounded border shadow-sm p-4">
-        <h3 className="text-base font-semibold text-brand mb-4">
-          Группировки
-        </h3>
+        <h3 className="text-base font-semibold text-brand mb-4">Группировки</h3>
         <div className="grid md:grid-cols-2 gap-4">
           <div>
             <div className="flex items-center justify-between mb-2">
@@ -406,7 +425,9 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
                 >
                   <select
                     value={field}
-                    onChange={(e) => updateFieldList("rows", index, e.target.value)}
+                    onChange={(e) =>
+                      updateFieldList("rows", index, e.target.value)
+                    }
                     className="flex-1 border rounded px-2 py-1 text-sm min-w-[160px]"
                   >
                     {[field, ...availableRowFields]
@@ -474,7 +495,9 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
                 >
                   <select
                     value={field}
-                    onChange={(e) => updateFieldList("columns", index, e.target.value)}
+                    onChange={(e) =>
+                      updateFieldList("columns", index, e.target.value)
+                    }
                     className="flex-1 border rounded px-2 py-1 text-sm min-w-[160px]"
                   >
                     {[field, ...availableColumnFields]
@@ -593,7 +616,9 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
       <section className="bg-white rounded border shadow-sm p-4 space-y-6">
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base font-semibold text-brand">Фильтры данных</h3>
+            <h3 className="text-base font-semibold text-brand">
+              Фильтры данных
+            </h3>
             <button
               type="button"
               onClick={() => addFilter("filters")}
@@ -604,7 +629,8 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
           </div>
           {pivotConfig.filters.length === 0 && (
             <p className="text-xs text-gray-400">
-              Фильтры применяются до свёртки. Пример: статус = «Зарегистрирован».
+              Фильтры применяются до свёртки. Пример: статус =
+              «Зарегистрирован».
             </p>
           )}
           <div className="space-y-2">
@@ -645,7 +671,7 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
                   value={
                     Array.isArray(filter.value)
                       ? filter.value.join(", ")
-                      : filter.value ?? ""
+                      : (filter.value ?? "")
                   }
                   onChange={(e) =>
                     updateFilter("filters", index, { value: e.target.value })
@@ -697,7 +723,9 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
                 <select
                   value={filter.column}
                   onChange={(e) =>
-                    updateFilter("postFilters", index, { column: e.target.value })
+                    updateFilter("postFilters", index, {
+                      column: e.target.value,
+                    })
                   }
                   className="border rounded px-2 py-1 text-sm"
                 >
@@ -717,7 +745,10 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
                   className="border rounded px-2 py-1 text-sm"
                 >
                   {filterOperators
-                    .filter((op) => op.value !== "contains" && op.value !== "not_contains")
+                    .filter(
+                      (op) =>
+                        op.value !== "contains" && op.value !== "not_contains",
+                    )
                     .map((operator) => (
                       <option key={operator.value} value={operator.value}>
                         {operator.label}
@@ -728,10 +759,12 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
                   value={
                     Array.isArray(filter.value)
                       ? filter.value.join(", ")
-                      : filter.value ?? ""
+                      : (filter.value ?? "")
                   }
                   onChange={(e) =>
-                    updateFilter("postFilters", index, { value: e.target.value })
+                    updateFilter("postFilters", index, {
+                      value: e.target.value,
+                    })
                   }
                   placeholder="Значение (пример: 500)"
                   className="border rounded px-2 py-1 text-sm"
@@ -780,13 +813,14 @@ export default function TableEditor({ data, config, onConfigChange }: TableEdito
                   }
                   className="border rounded px-2 py-1 text-sm"
                 >
-                  {[...pivotConfig.rows, ...availableAggregates.map((agg) => agg.key)].map(
-                    (option) => (
-                      <option key={option} value={option}>
-                        {option}
-                      </option>
-                    )
-                  )}
+                  {[
+                    ...pivotConfig.rows,
+                    ...availableAggregates.map((agg) => agg.key),
+                  ].map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
                 </select>
                 <select
                   value={rule.direction}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import ChartEditor, { ChartConfig } from "./ChartEditor";
+import { useState, useEffect, useMemo, useRef } from "react";
+import ChartEditor, { ChartConfig, normalizeChartConfig } from "./ChartEditor";
 import ChartView from "./ChartView";
 
 interface ChartWidgetProps {
@@ -23,18 +23,19 @@ export default function ChartWidget({
   onConfigChange,
   isReadonly = false, // ✅ по умолчанию false
 }: ChartWidgetProps) {
-  const [chartConfig, setChartConfig] = useState<ChartConfig>(
-    config || {
-      type: "bar",
-      xAxis: null,
-      yAxis: [],
-      legend: true,
-      legendPosition: "right",
-      xLabel: "",
-      yLabel: "",
-      useAggregation: false,
-    }
+  const normalizedConfig = useMemo(
+    () => normalizeChartConfig(config, data, { ensureAxes: !config }),
+    [config, data]
   );
+
+  const normalizedString = useMemo(
+    () => JSON.stringify(normalizedConfig),
+    [normalizedConfig]
+  );
+
+  const [chartConfig, setChartConfig] = useState<ChartConfig>(normalizedConfig);
+  const lastPropStringRef = useRef<string | null>(normalizedString);
+  const lastEmittedRef = useRef<string>(normalizedString);
 
   const [mode, setMode] = useState<"view" | "edit">(config ? "view" : "edit");
   const [localTitle, setLocalTitle] = useState(title);
@@ -42,8 +43,26 @@ export default function ChartWidget({
 
   // 🔄 уведомляем контейнер при изменении конфигурации
   useEffect(() => {
-    if (onConfigChange) onConfigChange(chartConfig);
-  }, [chartConfig]);
+    if (lastPropStringRef.current === normalizedString) {
+      return;
+    }
+
+    lastPropStringRef.current = normalizedString;
+    setChartConfig((prev) => {
+      if (JSON.stringify(prev) === normalizedString) {
+        return prev;
+      }
+      return normalizedConfig;
+    });
+  }, [normalizedConfig, normalizedString]);
+
+  useEffect(() => {
+    if (!onConfigChange) return;
+    const serialized = JSON.stringify(chartConfig);
+    if (serialized === lastEmittedRef.current) return;
+    lastEmittedRef.current = serialized;
+    onConfigChange(chartConfig);
+  }, [chartConfig, onConfigChange]);
 
   // 🔄 синхронизируем внешний title
   useEffect(() => {

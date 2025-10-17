@@ -9,7 +9,9 @@ export type PivotFilterOperator =
   | "lte"
   | "contains"
   | "not_contains"
-  | "in";
+  | "in"
+  | "starts_with"
+  | "ends_with";
 
 export interface PivotFilter {
   column: string;

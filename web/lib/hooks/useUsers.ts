@@ -13,6 +13,7 @@ import {
 interface Dashboard {
   name: string;
   file: string;
+  createdAt?: string;
 }
 
 interface User {

@@ -26,13 +26,13 @@ export default function TableWidget({
   isReadonly = false, // ✅ по умолчанию false
 }: TableWidgetProps) {
   const normalizedConfig = useMemo(
-    () => normalizePivotConfig(config, data),
-    [config, data]
+    () => normalizePivotConfig(config, data, { ensureValues: false }),
+    [config, data],
   );
 
   const normalizedString = useMemo(
     () => JSON.stringify(normalizedConfig),
-    [normalizedConfig]
+    [normalizedConfig],
   );
 
   const [pivotConfig, setPivotConfig] = useState<PivotConfig>(normalizedConfig);
@@ -105,7 +105,9 @@ export default function TableWidget({
             >
               {mode === "view" ? "Редактировать" : "Сохранить"}
             </button>
-            <span className="drag-handle cursor-move px-2 relative before:content-['⋮'] before:absolute before:left-[2px] before:top-0">⋮</span>
+            <span className="drag-handle cursor-move px-2 relative before:content-['⋮'] before:absolute before:left-[2px] before:top-0">
+              ⋮
+            </span>
           </div>
         )}
       </div>
@@ -114,7 +116,11 @@ export default function TableWidget({
       <div className="flex-1 overflow-hidden">
         {mode === "view" || isReadonly ? (
           <div className="h-full overflow-auto">
-            <TableView data={data} config={pivotConfig} height={height ?? 500} />
+            <TableView
+              data={data}
+              config={pivotConfig}
+              height={height ?? 500}
+            />
           </div>
         ) : (
           <div className="h-full overflow-auto">

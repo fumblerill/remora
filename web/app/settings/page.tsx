@@ -200,7 +200,11 @@ export default function SettingsPage() {
       <DashboardSelectModal
         isOpen={Boolean(dashboardModal)}
         login={dashboardModal?.login ?? ""}
-        configs={configs}
+        configs={configs.map((cfg) => ({
+          name: cfg.name,
+          file: cfg.file,
+          createdAt: cfg.createdAt ?? "",
+        }))}
         selected={dashboardModal?.selected ?? []}
         onClose={() => setDashboardModal(null)}
         onSubmit={async (updated) => {

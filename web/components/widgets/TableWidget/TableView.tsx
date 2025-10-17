@@ -43,54 +43,45 @@ export default function TableView({
 
   const valueColumns = pivotResult.isPivot ? pivotResult.valueColumns : [];
 
-  const columns = useMemo<ColumnDef<any>[]>(
-    () => {
-      const dimensionDefs: ColumnDef<any>[] = dimensionFields.map((field) => ({
-        accessorKey: field,
-        header: field,
+  const columns = useMemo<ColumnDef<any>[]>(() => {
+    const dimensionDefs: ColumnDef<any>[] = dimensionFields.map((field) => ({
+      accessorKey: field,
+      header: field,
+      cell: (info: CellContext<any, unknown>) => (
+        <CellContent value={info.getValue()} />
+      ),
+    }));
+
+    const valueDefs: ColumnDef<any>[] = valueColumns.map((col) => ({
+      accessorKey: col.key,
+      header: col.header,
+      cell: (info: CellContext<any, unknown>) => (
+        <CellContent value={info.getValue()} />
+      ),
+    }));
+
+    // если таблица не pivot, возможно есть столбцы, которых нет в dimensionFields
+    if (!pivotResult.isPivot) {
+      const extraKeys = Object.keys(tableData[0] ?? {}).filter(
+        (key) =>
+          !key.startsWith("__") &&
+          !dimensionFields.includes(key) &&
+          !valueColumns.some((col) => col.key === key),
+      );
+
+      const extraDefs = extraKeys.map((key) => ({
+        accessorKey: key,
+        header: key,
         cell: (info: CellContext<any, unknown>) => (
-          <div className="truncate whitespace-nowrap overflow-hidden">
-            {String(info.getValue() ?? "")}
-          </div>
+          <CellContent value={info.getValue()} />
         ),
       }));
 
-      const valueDefs: ColumnDef<any>[] = valueColumns.map((col) => ({
-        accessorKey: col.key,
-        header: col.header,
-        cell: (info: CellContext<any, unknown>) => (
-          <div className="truncate whitespace-nowrap overflow-hidden">
-            {String(info.getValue() ?? "")}
-          </div>
-        ),
-      }));
+      return [...dimensionDefs, ...extraDefs];
+    }
 
-      // если таблица не pivot, возможно есть столбцы, которых нет в dimensionFields
-      if (!pivotResult.isPivot) {
-        const extraKeys = Object.keys(tableData[0] ?? {}).filter(
-          (key) =>
-            !key.startsWith("__") &&
-            !dimensionFields.includes(key) &&
-            !valueColumns.some((col) => col.key === key)
-        );
-
-        const extraDefs = extraKeys.map((key) => ({
-          accessorKey: key,
-          header: key,
-          cell: (info: CellContext<any, unknown>) => (
-            <div className="truncate whitespace-nowrap overflow-hidden">
-              {String(info.getValue() ?? "")}
-            </div>
-          ),
-        }));
-
-        return [...dimensionDefs, ...extraDefs];
-      }
-
-      return [...dimensionDefs, ...valueDefs];
-    },
-    [dimensionFields, valueColumns, tableData, pivotResult.isPivot]
-  );
+    return [...dimensionDefs, ...valueDefs];
+  }, [dimensionFields, valueColumns, tableData, pivotResult.isPivot]);
 
   return <TanStackTable data={tableData} columns={columns} height={height} />;
 }
@@ -109,6 +100,15 @@ function TanStackTable({
 }) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [selectionStart, setSelectionStart] = useState<{
+    row: number;
+    col: number;
+  } | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<{
+    row: number;
+    col: number;
+  } | null>(null);
+  const [isSelecting, setIsSelecting] = useState(false);
 
   const table = useReactTable({
     data,
@@ -120,6 +120,7 @@ function TanStackTable({
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     columnResizeMode: "onChange",
+    enableSortingRemoval: false,
   });
 
   const parentRef = useRef<HTMLDivElement>(null);
@@ -132,7 +133,11 @@ function TanStackTable({
   });
 
   return (
-    <div className="border border-gray-300 w-full h-full overflow-hidden">
+    <div
+      className="border border-gray-300 w-full h-full overflow-hidden"
+      onMouseLeave={() => setIsSelecting(false)}
+      onMouseUp={() => setIsSelecting(false)}
+    >
       <div ref={parentRef} className="overflow-auto" style={{ height }}>
         {/* фиксированная шапка */}
         <div
@@ -152,7 +157,10 @@ function TanStackTable({
                     onClick={header.column.getToggleSortingHandler()}
                     className="cursor-pointer select-none flex items-center gap-1 truncate whitespace-nowrap overflow-hidden"
                   >
-                    {flexRender(header.column.columnDef.header, header.getContext())}
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
                     {{
                       asc: <ArrowUp size={14} />,
                       desc: <ArrowDown size={14} />,
@@ -164,7 +172,9 @@ function TanStackTable({
                     <input
                       type="text"
                       value={(header.column.getFilterValue() as string) ?? ""}
-                      onChange={(e) => header.column.setFilterValue(e.target.value)}
+                      onChange={(e) =>
+                        header.column.setFilterValue(e.target.value)
+                      }
                       placeholder="Фильтр..."
                       className="w-full border rounded px-1 text-xs mt-1"
                     />
@@ -206,20 +216,88 @@ function TanStackTable({
                   width: "100%",
                 }}
               >
-                {row.getVisibleCells().map((cell) => (
-                  <div
-                    key={cell.id}
-                    className="border-r px-2 py-1 truncate whitespace-nowrap overflow-hidden"
-                    style={{ width: cell.column.getSize() }}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </div>
-                ))}
+                {row.getVisibleCells().map((cell, cellIndex) => {
+                  const bounds = getSelectionBounds(
+                    selectionStart,
+                    selectionEnd,
+                  );
+                  const isSelected =
+                    bounds &&
+                    row.index >= bounds.top &&
+                    row.index <= bounds.bottom &&
+                    cellIndex >= bounds.left &&
+                    cellIndex <= bounds.right;
+                  return (
+                    <div
+                      key={cell.id}
+                      className={`border-r px-2 py-1 truncate whitespace-nowrap overflow-hidden ${
+                        isSelected ? "bg-blue-100" : ""
+                      }`}
+                      style={{
+                        width: cell.column.getSize(),
+                        userSelect: "none",
+                      }}
+                      onClick={() => {
+                        setSelectionStart({ row: row.index, col: cellIndex });
+                        setSelectionEnd({ row: row.index, col: cellIndex });
+                        setIsSelecting(false);
+                      }}
+                      onMouseDown={(e) => {
+                        if (e.button !== 0) return;
+                        setSelectionStart({ row: row.index, col: cellIndex });
+                        setSelectionEnd({ row: row.index, col: cellIndex });
+                        setIsSelecting(true);
+                      }}
+                      onMouseEnter={() => {
+                        if (!isSelecting || !selectionStart) return;
+                        setSelectionEnd({ row: row.index, col: cellIndex });
+                      }}
+                      onMouseUp={() => setIsSelecting(false)}
+                      onDoubleClick={() => {
+                        const value = cell.getContext().getValue();
+                        if (value === undefined || value === null) return;
+                        const str = String(value);
+                        if (!navigator.clipboard) return;
+                        navigator.clipboard.writeText(str).catch(() => {});
+                      }}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext(),
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+function getSelectionBounds(
+  start: { row: number; col: number } | null,
+  end: { row: number; col: number } | null,
+) {
+  if (!start || !end) return null;
+  const top = Math.min(start.row, end.row);
+  const bottom = Math.max(start.row, end.row);
+  const left = Math.min(start.col, end.col);
+  const right = Math.max(start.col, end.col);
+  return { top, bottom, left, right };
+}
+
+function CellContent({ value }: { value: unknown }) {
+  const str = value === undefined || value === null ? "" : String(value);
+  return (
+    <div
+      className="truncate whitespace-nowrap overflow-hidden select-text"
+      title={str}
+      tabIndex={0}
+    >
+      {str}
     </div>
   );
 }
