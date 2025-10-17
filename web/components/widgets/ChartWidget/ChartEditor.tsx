@@ -75,25 +75,31 @@ export function normalizeChartConfig(
         : null;
 
   const rawYAxis = Array.isArray(config?.yAxis) ? config!.yAxis : [];
-  let yAxis = rawYAxis
-    .map((item) => {
-      if (typeof item === "string") {
-        return { field: item, agg: "sum" as const };
+  let yAxis = rawYAxis.reduce<
+    Array<{ field: string; agg?: "sum" | "count" | "avg" }>
+  >((acc, item) => {
+    if (typeof item === "string") {
+      if (fields.includes(item)) {
+        acc.push({ field: item, agg: "sum" });
       }
-      if (item && typeof item === "object" && typeof item.field === "string") {
-        const agg =
-          item.agg && aggregationOptions.some((opt) => opt.value === item.agg)
-            ? item.agg
-            : undefined;
-        return { field: item.field, agg };
+      return acc;
+    }
+
+    if (item && typeof item === "object" && typeof item.field === "string") {
+      if (!fields.includes(item.field)) {
+        return acc;
       }
-      return null;
-    })
-    .filter(
-      (item): item is { field: string; agg?: "sum" | "count" | "avg" } =>
-        item !== null && typeof item.field === "string",
-    )
-    .filter((item) => fields.includes(item.field));
+
+      const agg =
+        item.agg && aggregationOptions.some((opt) => opt.value === item.agg)
+          ? item.agg
+          : undefined;
+
+      acc.push({ field: item.field, agg });
+    }
+
+    return acc;
+  }, []);
 
   if (type === "pie" && yAxis.length > 1) {
     yAxis = yAxis.slice(0, 1);
