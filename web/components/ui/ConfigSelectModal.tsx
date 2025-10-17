@@ -62,7 +62,7 @@ export default function ConfigSelectModal({
         throw new Error(payload.error || "Ошибка удаления");
       }
 
-      successToast("Конфигурация удалена");
+      successToast(`Конфигурация «${name}» удалена`);
       setConfigs((prev) => prev.filter((cfg) => cfg.file !== file));
       setConfirmTarget(null);
     } catch (err) {

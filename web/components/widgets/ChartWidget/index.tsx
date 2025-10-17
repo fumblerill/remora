@@ -83,7 +83,7 @@ export default function ChartWidget({
             >
               {mode === "view" ? "Редактировать" : "Сохранить"}
             </button>
-            <span className="drag-handle cursor-move px-2">⋮⋮</span>
+            <span className="drag-handle cursor-move px-2 relative before:content-['⋮'] before:absolute before:left-[2px] before:top-0">⋮</span>
           </div>
         )}
       </div>

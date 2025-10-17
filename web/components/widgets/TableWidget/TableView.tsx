@@ -1,6 +1,7 @@
 "use client";
 
 import type { PivotConfig } from "@/lib/types";
+import { applyPivot } from "@/lib/pivot";
 import {
   ColumnDef,
   flexRender,
@@ -29,22 +30,51 @@ export default function TableView({
 }: TableViewProps) {
   if (!data || data.length === 0) return <div>Нет данных</div>;
 
-  const { rows, cols, values } = config;
+  const pivotResult = useMemo(() => applyPivot(data, config), [data, config]);
+  const tableData = pivotResult.data;
 
-  // ===============================
-  // нормализуем values → всегда объекты { field, agg }
-  // ===============================
-  const normValues = values.map((v: any) =>
-    typeof v === "string" ? { field: v, agg: "sum" as const } : { field: v.field, agg: v.agg ?? "sum" }
-  );
+  if (!tableData.length) {
+    return <div>Нет данных</div>;
+  }
 
-  // ===============================
-  // Сырые данные (без pivot)
-  // ===============================
-  if (rows.length === 0 && cols.length === 0 && normValues.length === 0) {
-    const columns = useMemo<ColumnDef<any>[]>(
-      () =>
-        Object.keys(data[0]).map((key) => ({
+  const dimensionFields = pivotResult.isPivot
+    ? pivotResult.dimensionFields
+    : Object.keys(tableData[0]).filter((key) => !key.startsWith("__"));
+
+  const valueColumns = pivotResult.isPivot ? pivotResult.valueColumns : [];
+
+  const columns = useMemo<ColumnDef<any>[]>(
+    () => {
+      const dimensionDefs: ColumnDef<any>[] = dimensionFields.map((field) => ({
+        accessorKey: field,
+        header: field,
+        cell: (info: CellContext<any, unknown>) => (
+          <div className="truncate whitespace-nowrap overflow-hidden">
+            {String(info.getValue() ?? "")}
+          </div>
+        ),
+      }));
+
+      const valueDefs: ColumnDef<any>[] = valueColumns.map((col) => ({
+        accessorKey: col.key,
+        header: col.header,
+        cell: (info: CellContext<any, unknown>) => (
+          <div className="truncate whitespace-nowrap overflow-hidden">
+            {String(info.getValue() ?? "")}
+          </div>
+        ),
+      }));
+
+      // если таблица не pivot, возможно есть столбцы, которых нет в dimensionFields
+      if (!pivotResult.isPivot) {
+        const extraKeys = Object.keys(tableData[0] ?? {}).filter(
+          (key) =>
+            !key.startsWith("__") &&
+            !dimensionFields.includes(key) &&
+            !valueColumns.some((col) => col.key === key)
+        );
+
+        const extraDefs = extraKeys.map((key) => ({
           accessorKey: key,
           header: key,
           cell: (info: CellContext<any, unknown>) => (
@@ -52,103 +82,17 @@ export default function TableView({
               {String(info.getValue() ?? "")}
             </div>
           ),
-        })),
-      [data]
-    );
+        }));
 
-    return <TanStackTable data={data} columns={columns} height={height} />;
-  }
+        return [...dimensionDefs, ...extraDefs];
+      }
 
-  // ===============================
-  // Сводная таблица (pivot)
-  // ===============================
-  const colKeys = cols.length
-    ? Array.from(new Set(data.map((row) => cols.map((c) => row[c]).join(" | "))))
-    : [""];
-
-  const grouped: Record<string, any[]> = {};
-  for (const row of data) {
-    const rowKey = rows.map((r) => row[r]).join(" | ") || "∅";
-    if (!grouped[rowKey]) grouped[rowKey] = [];
-    grouped[rowKey].push(row);
-  }
-
-  const aggregate = (
-    rows: any[],
-    field: string,
-    agg: "sum" | "count" | "avg"
-  ) => {
-    if (agg === "count") {
-      // просто считаем количество строк, где поле не пустое
-      return rows.filter((r) => r[field] !== undefined && r[field] !== null && r[field] !== "").length;
-    }
-
-    const vals = rows
-      .map((r) => Number(r[field]))
-      .filter((v) => !isNaN(v));
-
-    if (agg === "sum") return vals.reduce((a, b) => a + b, 0);
-    if (agg === "avg") return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
-
-    return 0;
-  };
-
-  const pivotRows = Object.entries(grouped).map(([rowKey, rowsData]) => {
-    const rowObj: Record<string, any> = {};
-    const rowParts = rowKey.split(" | ");
-    rows.forEach((r, idx) => {
-      rowObj[r] = rowParts[idx];
-    });
-
-    colKeys.forEach((colKey) => {
-      normValues.forEach((v) => {
-        const fieldKey = colKey
-          ? `${colKey} | ${v.field} (${v.agg})`
-          : `${v.field} (${v.agg})`;
-
-        const filtered = colKey
-          ? rowsData.filter((r) => cols.map((c) => r[c]).join(" | ") === colKey)
-          : rowsData;
-
-        rowObj[fieldKey] = aggregate(filtered, v.field, v.agg);
-      });
-    });
-
-    return rowObj;
-  });
-
-  const pivotColumns = useMemo<ColumnDef<any>[]>(
-    () => [
-      ...rows.map((r) => ({
-        accessorKey: r,
-        header: r,
-        cell: (info: CellContext<any, unknown>) => (
-          <div className="truncate whitespace-nowrap overflow-hidden">
-            {String(info.getValue() ?? "")}
-          </div>
-        ),
-      })),
-      ...colKeys.flatMap((colKey) =>
-        normValues.map((v) => {
-          const fieldKey = colKey
-            ? `${colKey} | ${v.field} (${v.agg})`
-            : `${v.field} (${v.agg})`;
-          return {
-            accessorKey: fieldKey,
-            header: fieldKey,
-            cell: (info: CellContext<any, unknown>) => (
-              <div className="truncate whitespace-nowrap overflow-hidden">
-                {String(info.getValue() ?? "")}
-              </div>
-            ),
-          } as ColumnDef<any>;
-        })
-      ),
-    ],
-    [rows, colKeys, normValues]
+      return [...dimensionDefs, ...valueDefs];
+    },
+    [dimensionFields, valueColumns, tableData, pivotResult.isPivot]
   );
 
-  return <TanStackTable data={pivotRows} columns={pivotColumns} height={height} />;
+  return <TanStackTable data={tableData} columns={columns} height={height} />;
 }
 
 // ===============================

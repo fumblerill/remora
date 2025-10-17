@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import TableView from "./TableView";
 import TableEditor from "./TableEditor";
 import type { PivotConfig } from "@/lib/types";
+import { normalizePivotConfig } from "@/lib/pivot";
 
 interface TableWidgetProps {
   data: any[];
@@ -24,11 +25,20 @@ export default function TableWidget({
   onConfigChange,
   isReadonly = false, // ✅ по умолчанию false
 }: TableWidgetProps) {
-  const fields = data && data.length > 0 ? Object.keys(data[0]) : [];
-
-  const [pivotConfig, setPivotConfig] = useState<PivotConfig>(
-    config || { available: fields, rows: [], cols: [], values: [] }
+  const normalizedConfig = useMemo(
+    () => normalizePivotConfig(config, data),
+    [config, data]
   );
+
+  const normalizedString = useMemo(
+    () => JSON.stringify(normalizedConfig),
+    [normalizedConfig]
+  );
+
+  const [pivotConfig, setPivotConfig] = useState<PivotConfig>(normalizedConfig);
+
+  const lastPropStringRef = useRef<string | null>(normalizedString);
+  const lastEmittedRef = useRef<string>(normalizedString);
 
   const [mode, setMode] = useState<"view" | "edit">(config ? "view" : "edit");
   const [localTitle, setLocalTitle] = useState(title);
@@ -36,8 +46,26 @@ export default function TableWidget({
 
   // 🔄 уведомляем контейнер при изменении конфига
   useEffect(() => {
-    if (onConfigChange) onConfigChange(pivotConfig);
-  }, [pivotConfig]);
+    if (lastPropStringRef.current === normalizedString) {
+      return;
+    }
+
+    lastPropStringRef.current = normalizedString;
+    setPivotConfig((prev) => {
+      if (JSON.stringify(prev) === normalizedString) {
+        return prev;
+      }
+      return normalizedConfig;
+    });
+  }, [normalizedConfig, normalizedString]);
+
+  useEffect(() => {
+    if (!onConfigChange) return;
+    const serialized = JSON.stringify(pivotConfig);
+    if (serialized === lastEmittedRef.current) return;
+    lastEmittedRef.current = serialized;
+    onConfigChange(pivotConfig);
+  }, [pivotConfig, onConfigChange]);
 
   // 🔄 синхронизируем внешний title с локальным
   useEffect(() => {
