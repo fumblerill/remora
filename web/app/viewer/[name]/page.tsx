@@ -29,7 +29,9 @@ export default function ViewerPage() {
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const res = await fetch(`/configs/${name}.json?ts=${Date.now()}`);
+        const res = await fetch(`/api/dashboard/${name}?ts=${Date.now()}`, {
+          cache: "no-store",
+        });
         if (!res.ok) throw new Error("Не удалось загрузить шаблон");
         const dashboard = await res.json();
 

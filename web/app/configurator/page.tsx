@@ -58,7 +58,10 @@ export default function ConfiguratorPage() {
   // 📂 Загрузка сохранённого дашборда
   const loadDashboard = async (fileName: string) => {
     try {
-      const res = await fetch(`/configs/${fileName}?ts=${Date.now()}`);
+      const cleanName = fileName.replace(/\.json$/i, "");
+      const res = await fetch(`/api/dashboard/${cleanName}?ts=${Date.now()}`, {
+        cache: "no-store",
+      });
       if (!res.ok) throw new Error("Не удалось загрузить файл");
       const dashboard = await res.json();
 
