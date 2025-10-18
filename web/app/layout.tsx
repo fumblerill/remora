@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import LayoutWrapper from "../components/layout/LayoutWrapper";
 import ClientProviders from "../components/layout/ClientProviders";
 import { DEFAULT_LOCALE, Locale, isLocale } from "@/lib/i18n/dictionaries";
+import Footer from "@/components/layout/Footer";
 
 export const metadata = {
   title: "Remora",

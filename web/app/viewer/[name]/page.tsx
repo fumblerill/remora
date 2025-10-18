@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
 import Configurator from "@/components/configurator/Configurator";
 import { Upload } from "lucide-react";
 import FileUploadModal from "@/components/ui/FileUploadModal";
@@ -128,6 +129,7 @@ export default function ViewerPage() {
           successToast(t("viewer.uploadSuccess"));
         }}
       />
+      <Footer />
     </div>
   );
 }

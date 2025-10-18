@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
 import {
   useReactTable,
   getCoreRowModel,
@@ -384,7 +385,7 @@ export default function SettingsPage() {
             </section>
           )}
 
-          <section className="bg-white shadow-md rounded-lg p-4 border flex-1">
+          <section className="bg-white shadow-md rounded-lg p-4 border flex-1 mb-8">
             <h2 className="text-xl font-semibold text-brand mb-4 flex items-center gap-2">
               <LayoutDashboard size={18} /> {t("settings.users.title")}
             </h2>
@@ -485,6 +486,7 @@ export default function SettingsPage() {
         onClose={() => setCreating(false)}
         onCreate={handleCreateUser}
       />
+      <Footer />
     </div>
   );
 }

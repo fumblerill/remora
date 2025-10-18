@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
 import Configurator from "@/components/configurator/Configurator";
 import { Layout } from "react-grid-layout";
 import { Upload, Table, BarChart3, Save, FolderOpen, FileText } from "lucide-react";
@@ -219,7 +220,7 @@ export default function ConfiguratorPage() {
         </div>
 
         {/* Рабочая зона */}
-        <main className="flex-1 bg-white shadow-md rounded-lg p-4 border h-full">
+        <main className="flex-1 bg-white shadow-md rounded-lg p-4 border mb-8">
           <Configurator widgets={widgets} data={data} setWidgets={setWidgets} />
         </main>
       </div>
@@ -239,6 +240,7 @@ export default function ConfiguratorPage() {
         onClose={() => setConfigModal(false)}
         onSelect={loadDashboard}
       />
+      <Footer />
     </div>
   );
 }

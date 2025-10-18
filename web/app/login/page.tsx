@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Footer from "@/components/layout/Footer";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -51,8 +52,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
-      <div className="w-full max-w-md bg-white shadow-md rounded-lg p-8">
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <main className="flex flex-1 items-center justify-center">
+        <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
         <h2 className="text-2xl font-bold text-brand mb-6 text-center">Вход в Remora</h2>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -93,7 +95,9 @@ export default function LoginPage() {
             {status}
           </p>
         )}
-      </div>
+        </div>
+      </main>
+      <Footer />
     </div>
   );
 }

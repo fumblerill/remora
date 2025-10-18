@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/components/i18n/LocaleProvider";
+import Footer from "@/components/layout/Footer";
 
 type StatusState = {
   message: string;
@@ -49,8 +50,9 @@ export default function SetupPage() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-      <div className="w-full max-w-md bg-white shadow-md rounded-lg p-8">
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <main className="flex flex-1 items-center justify-center">
+        <div className="w-full max-w-md rounded-lg bg-white p-8 shadow-md">
         <h1 className="text-2xl font-bold text-center mb-6 text-brand">
           {t("setup.title")}
         </h1>
@@ -88,7 +90,9 @@ export default function SetupPage() {
             {status.message}
           </p>
         )}
-      </div>
+        </div>
+      </main>
+      <Footer />
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
 import Link from "next/link";
 import { useTranslation } from "@/components/i18n/LocaleProvider";
 
@@ -101,6 +102,7 @@ export default function HomePage() {
           </p>
         )}
       </main>
+      <Footer />
     </div>
   );
 }
