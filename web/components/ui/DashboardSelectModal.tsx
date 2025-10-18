@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal";
 import { LayoutDashboard } from "lucide-react";
+import { useTranslation } from "@/components/i18n/LocaleProvider";
 
 type ConfigOption = {
   name: string;
@@ -28,6 +29,7 @@ export default function DashboardSelectModal({
   onSubmit,
 }: DashboardSelectModalProps) {
   const [localSelection, setLocalSelection] = useState<string[]>(selected);
+  const { t, locale } = useTranslation();
 
   useEffect(() => {
     if (isOpen) {
@@ -57,8 +59,8 @@ export default function DashboardSelectModal({
       seen.add(name);
     });
 
-    return merged.sort((a, b) => a.name.localeCompare(b.name, "ru", { sensitivity: "base" }));
-  }, [configs, localSelection, selected]);
+    return merged.sort((a, b) => a.name.localeCompare(b.name, locale, { sensitivity: "base" }));
+  }, [configs, locale, localSelection, selected]);
 
   const toggle = (name: string) => {
     setLocalSelection((prev) =>
@@ -71,13 +73,14 @@ export default function DashboardSelectModal({
       <div className="flex items-center gap-2 text-brand mb-4">
         <LayoutDashboard size={18} />
         <h3 className="text-lg font-semibold">
-          Дашборды для <span className="font-mono text-gray-700">{login}</span>
+          {t("dashboardSelect.title")}{" "}
+          <span className="font-mono text-gray-700">{login}</span>
         </h3>
       </div>
 
       <div className="border rounded-md max-h-64 overflow-y-auto divide-y">
         {options.length === 0 ? (
-          <p className="p-3 text-sm text-gray-500">Нет сохранённых дашбордов.</p>
+          <p className="p-3 text-sm text-gray-500">{t("dashboardSelect.empty")}</p>
         ) : (
           options.map((cfg) => {
             const checked = localSelection.includes(cfg.name);
@@ -95,7 +98,7 @@ export default function DashboardSelectModal({
                   {cfg.name}
                   {cfg.missing && (
                     <span className="ml-2 inline-flex items-center rounded bg-orange-100 px-2 py-0.5 text-xs text-orange-700">
-                      удалённый файл
+                      {t("dashboardSelect.missingBadge")}
                     </span>
                   )}
                 </span>
@@ -110,13 +113,13 @@ export default function DashboardSelectModal({
           onClick={onClose}
           className="px-4 py-2 text-sm border rounded hover:bg-gray-100"
         >
-          Отмена
+          {t("dashboardSelect.cancel")}
         </button>
         <button
           onClick={() => onSubmit(localSelection)}
           className="px-4 py-2 text-sm bg-brand text-white rounded hover:bg-brand/90 transition"
         >
-          Сохранить
+          {t("dashboardSelect.save")}
         </button>
       </div>
     </Modal>

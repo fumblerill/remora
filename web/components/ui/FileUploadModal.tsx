@@ -21,6 +21,7 @@ import {
   normalizeDataset,
   type UploadedDataset,
 } from "@/lib/fileUpload";
+import { useTranslation } from "@/components/i18n/LocaleProvider";
 
 type FileUploadModalProps = {
   isOpen: boolean;
@@ -44,6 +45,7 @@ export default function FileUploadModal({
   const [originalDataset, setOriginalDataset] = useState<UploadedDataset | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState("");
   const [headerMovedToRows, setHeaderMovedToRows] = useState(false);
+  const { t } = useTranslation();
 
   const isValidationMode = Boolean(validationDataset);
   const validationColumns = validationDataset?.columns.length ?? 0;
@@ -56,7 +58,7 @@ export default function FileUploadModal({
     setOriginalDataset(null);
     setUploadedFileName("");
     setHeaderMovedToRows(false);
-  }, []);
+  }, [t]);
 
   const handleModalClose = useCallback(() => {
     resetState();
@@ -69,7 +71,7 @@ export default function FileUploadModal({
     setOriginalDataset(null);
     setUploadedFileName("");
     setHeaderMovedToRows(false);
-  }, []);
+  }, [t]);
 
   const resetValidationChanges = useCallback(() => {
     if (!originalDataset) return;
@@ -129,7 +131,9 @@ export default function FileUploadModal({
       updated = true;
 
       return {
-        columns: Array.from({ length: maxCols }, (_, idx) => `Колонка ${idx + 1}`),
+        columns: Array.from({ length: maxCols }, (_, idx) =>
+          t("uploadModal.columnFallback", { index: idx + 1 }),
+        ),
         rows: [headerRow, ...normalizedRows],
       };
     });
@@ -152,7 +156,7 @@ export default function FileUploadModal({
         if (candidateValue) return candidateValue;
         const existing = current.columns[idx];
         if (existing && existing.trim().length > 0) return existing;
-        return `Колонка ${idx + 1}`;
+        return t("uploadModal.columnFallback", { index: idx + 1 });
       });
 
       const nextRows = current.rows
@@ -207,7 +211,7 @@ export default function FileUploadModal({
         setHeaderMovedToRows(false);
       } catch (err) {
         console.error(err);
-        alert("Не удалось загрузить файл");
+        alert(t("uploadModal.uploadError"));
       } finally {
         setUploading(false);
       }
@@ -229,14 +233,15 @@ export default function FileUploadModal({
     handleModalClose,
     onUploadComplete,
     requiresValidation,
+    t,
     validationDataset,
   ]);
 
   const primaryLabel = isValidationMode
-    ? "Импортировать данные"
+    ? t("uploadModal.confirmSubmit")
     : uploading
-      ? "Загрузка..."
-      : "Сохранить";
+      ? t("uploadModal.processing")
+      : t("uploadModal.startUpload");
 
   const primaryDisabled = isValidationMode
     ? validationColumns === 0
@@ -253,14 +258,13 @@ export default function FileUploadModal({
       >
         <div className="flex flex-col h-full">
           <div className="px-6 pt-6">
-            <h2 className="text-lg font-semibold">Проверка данных</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Удалите лишние строки и столбцы перед импортом данных в дашборд.
-            </p>
+            <h2 className="text-lg font-semibold">{t("uploadModal.validationTitle")}</h2>
+            <p className="text-sm text-gray-600 mt-1">{t("uploadModal.validationHint")}</p>
             <p className="text-xs text-gray-500 mt-2">
-              Файл:{" "}
-              <span className="font-medium text-gray-700">{uploadedFileName || "—"}</span> · Строк:{" "}
-              {validationDataset.rows.length} · Столбцов: {validationColumns}
+              {t("uploadModal.fileName")}{" "}
+              <span className="font-medium text-gray-700">{uploadedFileName || "—"}</span> ·{" "}
+              {t("uploadModal.rowsCount")} {validationDataset.rows.length} ·{" "}
+              {t("uploadModal.columnsCount")} {validationColumns}
             </p>
 
             <div className="mt-3 flex flex-wrap gap-3">
@@ -270,14 +274,14 @@ export default function FileUploadModal({
                 className="text-sm text-brand hover:underline disabled:text-gray-400 disabled:no-underline"
                 disabled={!originalDataset}
               >
-                Сбросить изменения
+                {t("uploadModal.reset")}
               </button>
               <button
                 type="button"
                 onClick={startOver}
                 className="text-sm text-gray-500 hover:underline"
               >
-                Выбрать другой файл
+                {t("uploadModal.replaceButton")}
               </button>
               <button
                 type="button"
@@ -285,7 +289,7 @@ export default function FileUploadModal({
                 className="text-sm text-gray-600 hover:underline disabled:text-gray-400 disabled:no-underline"
                 disabled={headerMovedToRows}
               >
-                Перенести заголовок в строки
+                {t("uploadModal.moveHeader")}
               </button>
               <button
                 type="button"
@@ -293,14 +297,13 @@ export default function FileUploadModal({
                 className="text-sm text-gray-600 hover:underline disabled:text-gray-400 disabled:no-underline"
                 disabled={validationDataset.rows.length === 0}
               >
-                Сделать первую строку заголовками
+                {t("uploadModal.promoteFirstRow")}
               </button>
             </div>
 
             {validationColumns === 0 && (
               <p className="mt-3 text-sm text-red-500">
-                Нельзя импортировать данные без столбцов. Сбросьте изменения или выберите другой
-                файл.
+                {t("uploadModal.noColumnsWarning")}
               </p>
             )}
           </div>
@@ -330,7 +333,7 @@ export default function FileUploadModal({
 
   return (
     <Modal isOpen={isOpen} onClose={handleModalClose}>
-      <h2 className="text-lg font-semibold mb-4">Загрузить файл</h2>
+      <h2 className="text-lg font-semibold mb-4">{t("uploadModal.title")}</h2>
 
       <div
         className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-brand transition"
@@ -355,19 +358,21 @@ export default function FileUploadModal({
         />
         {!file ? (
           <label htmlFor="fileInput" className="cursor-pointer block">
-            <p className="text-gray-600">Перетащите CSV/XLSX/ODS сюда</p>
-            <p className="text-sm text-gray-400 mt-2">или нажмите для выбора файла</p>
+            <p className="text-gray-600">{t("uploadModal.dropHint")}</p>
+            <p className="text-sm text-gray-400 mt-2">{t("uploadModal.dropSecondary")}</p>
           </label>
         ) : (
           <div>
-            <p className="font-medium">{file.name}</p>
+            <p className="font-medium">
+              {t("uploadModal.selectedFile")} {file.name}
+            </p>
             <p className="text-sm text-gray-500">{(file.size / 1024).toFixed(1)} KB</p>
             <button
               type="button"
               onClick={() => setFile(null)}
               className="mt-2 text-sm text-red-500 hover:underline"
             >
-              Удалить
+              {t("uploadModal.removeFile")}
             </button>
           </div>
         )}
@@ -379,7 +384,7 @@ export default function FileUploadModal({
           checked={requiresValidation}
           onChange={(e) => setRequiresValidation(e.target.checked)}
         />
-        Данные требуют валидации (удаление строк и столбцов перед импортом)
+        {t("uploadModal.requiresValidation")}
       </label>
 
       <button
@@ -407,6 +412,7 @@ function ValidationTable({
   onPromoteRowToHeader,
 }: ValidationTableProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { t } = useTranslation();
 
   const tableData = useMemo<ValidationRow[]>(
     () =>
@@ -421,14 +427,14 @@ function ValidationTable({
       {
         id: "actions",
         size: 150,
-        header: () => <span>Действия</span>,
+        header: () => <span>{t("uploadModal.tableActions")}</span>,
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => onRemoveRow(row.index)}
               className="inline-flex items-center justify-center rounded bg-red-50 px-2 py-1 text-xs text-red-600 hover:bg-red-100"
-              title="Удалить строку"
+              title={t("uploadModal.removeRow")}
             >
               <Trash2 size={14} />
             </button>
@@ -436,7 +442,7 @@ function ValidationTable({
               type="button"
               onClick={() => onPromoteRowToHeader(row.index)}
               className="inline-flex items-center justify-center rounded bg-gray-100 px-2 py-1 text-xs text-gray-600 hover:bg-gray-200"
-              title="Сделать заголовком"
+              title={t("uploadModal.promoteRow")}
             >
               <ArrowUpLeft size={14} />
             </button>
@@ -461,15 +467,15 @@ function ValidationTable({
           <div className="flex items-center gap-1">
             <span
               className="truncate max-w-[12rem]"
-              title={header || `Колонка ${columnIndex + 1}`}
+              title={header || t("uploadModal.columnFallback", { index: columnIndex + 1 })}
             >
-              {header || `Колонка ${columnIndex + 1}`}
+              {header || t("uploadModal.columnFallback", { index: columnIndex + 1 })}
             </span>
             <button
               type="button"
               onClick={() => onRemoveColumn(columnIndex)}
               className="inline-flex items-center justify-center rounded p-1 text-red-500 hover:bg-red-100"
-              title="Удалить столбец"
+              title={t("uploadModal.removeColumn")}
             >
               <X size={14} />
             </button>
@@ -484,7 +490,7 @@ function ValidationTable({
     });
 
     return defs;
-  }, [dataset.columns, onPromoteRowToHeader, onRemoveColumn, onRemoveRow]);
+  }, [dataset.columns, onPromoteRowToHeader, onRemoveColumn, onRemoveRow, t]);
 
   const table = useReactTable({
     data: tableData,
@@ -573,8 +579,7 @@ function ValidationTable({
                   colSpan={leafColumns.length}
                   className="px-4 py-8 text-center text-sm text-gray-500"
                 >
-                  Все строки удалены. Чтобы начать заново, выберите другой файл или сбросьте
-                  изменения.
+                  {t("uploadModal.allRowsRemoved")}
                 </td>
               </tr>
             )}

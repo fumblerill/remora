@@ -4,6 +4,7 @@ import React, { useRef, useLayoutEffect, useState } from "react";
 import TableWidget from "@/components/widgets/TableWidget";
 import ChartWidget from "@/components/widgets/ChartWidget";
 import ReportWidget from "@/components/widgets/ReportWidget";
+import { useTranslation } from "@/components/i18n/LocaleProvider";
 
 export type Widget = {
   id: string;
@@ -29,6 +30,7 @@ export default function WidgetContainer({
   const { id, type, title, config } = widget;
   const containerRef = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
+  const { t } = useTranslation();
 
   useLayoutEffect(() => {
     if (!containerRef.current) return;
@@ -71,7 +73,7 @@ export default function WidgetContainer({
       <ReportWidget
         data={data ?? []}
         config={config ?? null}
-        title={title || "Отчёт"}
+        title={title || t("widgets.report.defaultTitle")}
         onTitleChange={(newTitle) => onUpdate(id, { title: newTitle })}
         onConfigChange={(nextConfig) => onUpdate(id, { config: nextConfig })}
         isReadonly={isReadonly}
@@ -80,7 +82,7 @@ export default function WidgetContainer({
   };
 
   const widgetElement = widgetsMap[type] ?? (
-    <span className="text-red-500 m-auto">❓ Неизвестный виджет</span>
+    <span className="text-red-500 m-auto">{t("widgets.common.unknownWidget")}</span>
   );
 
   return (
@@ -88,7 +90,7 @@ export default function WidgetContainer({
       {data && data.length > 0 ? (
         widgetElement
       ) : (
-        <span className="text-gray-500 m-auto">Нет данных</span>
+        <span className="text-gray-500 m-auto">{t("widgets.common.noData")}</span>
       )}
     </div>
   );

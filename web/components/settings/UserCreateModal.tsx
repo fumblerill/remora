@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Modal from "@/components/ui/Modal";
+import { useTranslation } from "@/components/i18n/LocaleProvider";
 
 interface UserCreateModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ export default function UserCreateModal({ isOpen, onClose, onCreate }: UserCreat
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("User");
   const [loading, setLoading] = useState(false);
+  const { t } = useTranslation();
 
   const handleSubmit = async () => {
     if (!login.trim() || !password.trim()) return;
@@ -28,18 +30,18 @@ export default function UserCreateModal({ isOpen, onClose, onCreate }: UserCreat
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <h2 className="text-lg font-semibold text-brand mb-4">Новый пользователь</h2>
+      <h2 className="text-lg font-semibold text-brand mb-4">{t("settings.userCreate.title")}</h2>
 
       <input
         type="text"
-        placeholder="Логин"
+        placeholder={t("settings.userCreate.loginPlaceholder")}
         value={login}
         onChange={(e) => setLogin(e.target.value)}
         className="border w-full px-3 py-2 rounded mb-3 focus:outline-none focus:ring-2 focus:ring-brand"
       />
       <input
         type="password"
-        placeholder="Пароль"
+        placeholder={t("settings.userCreate.passwordPlaceholder")}
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         className="border w-full px-3 py-2 rounded mb-3 focus:outline-none focus:ring-2 focus:ring-brand"
@@ -60,14 +62,14 @@ export default function UserCreateModal({ isOpen, onClose, onCreate }: UserCreat
           disabled={loading}
           className="border px-4 py-2 rounded-lg hover:bg-gray-100"
         >
-          Отмена
+          {t("settings.userCreate.cancel")}
         </button>
         <button
           onClick={handleSubmit}
           disabled={loading}
           className="bg-brand text-white px-4 py-2 rounded-lg hover:bg-brand/90 transition disabled:opacity-50"
         >
-          {loading ? "Создание..." : "Создать"}
+          {loading ? t("settings.userCreate.submitLoading") : t("settings.userCreate.submitIdle")}
         </button>
       </div>
     </Modal>

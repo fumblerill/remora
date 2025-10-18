@@ -26,6 +26,7 @@ import UserCreateModal from "@/components/settings/UserCreateModal";
 import DashboardSelectModal from "@/components/ui/DashboardSelectModal";
 import { successToast, errorToast } from "@/lib/toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
+import { useTranslation } from "@/components/i18n/LocaleProvider";
 
 export default function SettingsPage() {
   const { role, loading: roleLoading } = useUserRole();
@@ -39,6 +40,7 @@ export default function SettingsPage() {
     handleRoleChange,
     handleDashboardsChange,
   } = useUsers();
+  const { t, locale } = useTranslation();
 
   const [creating, setCreating] = useState(false);
   const [dashboardModal, setDashboardModal] = useState<{
@@ -62,7 +64,7 @@ export default function SettingsPage() {
       const res = await fetch(`/api/dashboard/${encodeURIComponent(name)}`);
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error || "Не удалось получить конфигурацию");
+        throw new Error(data?.error || "Failed to fetch configuration");
       }
       const blob = new Blob([JSON.stringify(data, null, 2)], {
         type: "application/json",
@@ -77,7 +79,7 @@ export default function SettingsPage() {
       URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error("download config error:", err);
-      errorToast(err.message || "Не удалось скачать конфигурацию");
+      errorToast(err.message || t("settings.configs.downloadError"));
     }
   };
 
@@ -102,13 +104,13 @@ export default function SettingsPage() {
       );
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || "Не удалось удалить конфигурацию");
+        throw new Error(data?.error || "Failed to delete configuration");
       }
-      successToast("Конфигурация удалена");
+      successToast(t("settings.configs.deleteSuccess"));
       await loadAll();
     } catch (err: any) {
       console.error("delete config error:", err);
-      errorToast(err.message || "Не удалось удалить конфигурацию");
+      errorToast(err.message || t("settings.configs.deleteError"));
     } finally {
       setConfirmConfig(null);
     }
@@ -130,10 +132,10 @@ export default function SettingsPage() {
       try {
         parsed = JSON.parse(text);
       } catch {
-        throw new Error("Не удалось разобрать JSON");
+        throw new Error("Failed to parse JSON");
       }
       if (!parsed?.name || !Array.isArray(parsed?.widgets)) {
-        throw new Error("JSON должен содержать поля name и widgets");
+        throw new Error("JSON must include name and widgets fields");
       }
 
       const widgetsPayload = Array.isArray(parsed.widgets) ? [...parsed.widgets] : [];
@@ -146,7 +148,7 @@ export default function SettingsPage() {
         widgetsPayload.push({
           id: reportId,
           type: "report",
-          title: parsed.report.title ?? "Отчёт",
+          title: parsed.report.title ?? t("widgets.report.defaultTitle"),
           layout: {
             i: reportId,
             x: 0,
@@ -172,13 +174,13 @@ export default function SettingsPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data?.error || "Не удалось сохранить конфигурацию");
+        throw new Error(data?.error || "Failed to import configuration");
       }
-      successToast("Конфигурация импортирована");
+      successToast(t("settings.configs.importSuccess"));
       await loadAll();
     } catch (err: any) {
       console.error("import config error:", err);
-      errorToast(err.message || "Не удалось импортировать конфигурацию");
+      errorToast(err.message || t("settings.configs.importError"));
     } finally {
       setImporting(false);
       event.target.value = "";
@@ -188,9 +190,9 @@ export default function SettingsPage() {
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
       { header: "ID", accessorKey: "id" },
-      { header: "Логин", accessorKey: "login" },
+      { header: t("settings.users.loginHeader"), accessorKey: "login" },
       {
-        header: "Роль",
+        header: t("settings.users.roleHeader"),
         accessorKey: "role",
         cell: ({ row }) =>
           isSuper ? (
@@ -206,11 +208,11 @@ export default function SettingsPage() {
               <option value="SuperAdmin">SuperAdmin</option>
             </select>
           ) : (
-            <span>{row.original.role}</span>
+              <span>{row.original.role}</span>
           ),
       },
       {
-        header: "Дашборды",
+        header: t("settings.users.dashboardsHeader"),
         accessorKey: "dashboards",
         cell: ({ row }) => {
           const selected = row.original.dashboards || [];
@@ -233,13 +235,13 @@ export default function SettingsPage() {
               }
               className="border border-gray-300 rounded px-2 py-1 text-sm w-full text-left bg-white hover:bg-gray-50"
             >
-              {selected.length ? selected.join(", ") : "Выбрать дашборды"}
+              {selected.length ? selected.join(", ") : t("settings.users.selectDashboards")}
             </button>
           );
         },
       },
       {
-        header: "Действия",
+        header: t("settings.users.actionsHeader"),
         id: "actions",
         cell: ({ row }) =>
           isSuper ? (
@@ -247,7 +249,7 @@ export default function SettingsPage() {
               onClick={() => handleDelete(row.original.id)}
               className="flex items-center gap-1 px-2 py-1 border border-red-400 text-red-500 rounded text-sm hover:bg-red-50"
             >
-              <Trash2 size={14} /> Удалить
+              <Trash2 size={14} /> {t("common.delete")}
             </button>
           ) : (
             <span className="text-gray-400 text-sm">—</span>
@@ -261,6 +263,7 @@ export default function SettingsPage() {
       isAdmin,
       handleRoleChange,
       handleDashboardsChange,
+      t,
     ],
   );
 
@@ -272,30 +275,30 @@ export default function SettingsPage() {
   });
 
   if (roleLoading || loading)
-    return <div className="p-6 text-center">Загрузка...</div>;
+    return <div className="p-6 text-center">{t("common.loading")}</div>;
 
   return (
     <div className="flex flex-col h-full">
       <Header />
       <div className="flex flex-1 mt-4 gap-4">
-        {/* Боковая панель */}
+        {/* Sidebar */}
         <div className="relative">
           <div className="absolute top-0 left-1/4 w-0.5 h-full bg-gray-300 z-0" />
           <div className="absolute top-0 right-1/4 w-0.5 h-full bg-gray-300 z-0" />
           <aside className="sticky top-20 z-10 w-64 bg-white shadow-md rounded-lg p-4 flex flex-col gap-3 border h-fit">
             <h2 className="text-lg font-bold text-brand mb-1 flex items-center gap-2">
-              <Shield size={18} /> Управление
+              <Shield size={18} /> {t("settings.sidebar.title")}
             </h2>
             {isSuper ? (
               <button
                 onClick={() => setCreating(true)}
-                className="flex items-center justify-center gap-2 px-3 py-2 border border-brand text-brand rounded hover:bg-brand hover:text-white transition"
+                className="flex items-center justify-left gap-2 px-3 py-2 border border-brand text-brand rounded hover:bg-brand hover:text-white transition"
               >
-                <UserPlus size={16} /> Новый пользователь
+                <UserPlus size={16} /> {t("settings.sidebar.newUser")}
               </button>
             ) : (
               <p className="text-gray-500 text-sm">
-                Только SuperAdmin может создавать пользователей
+                {t("settings.sidebar.onlySuperHint")}
               </p>
             )}
             <button
@@ -305,18 +308,18 @@ export default function SettingsPage() {
               className="flex items-center gap-2 px-3 py-2 border border-brand text-brand rounded hover:bg-brand hover:text-white transition disabled:opacity-60"
             >
               <Upload size={16} />{" "}
-              {importing ? "Импорт..." : "Импорт JSON"}
+              {importing ? t("settings.sidebar.importing") : t("settings.sidebar.importButton")}
             </button>
           </aside>
         </div>
 
-        {/* Основной контент */}
+        {/* Main content */}
         <main className="flex-1 flex flex-col gap-6">
           {canManageConfigs && (
             <section className="bg-white shadow-md rounded-lg p-4 border">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                 <h2 className="text-xl font-semibold text-brand flex items-center gap-2">
-                  <LayoutDashboard size={18} /> Конфигурации дашбордов
+                  <LayoutDashboard size={18} /> {t("settings.configs.title")}
                 </h2>
               </div>
               <input
@@ -328,17 +331,17 @@ export default function SettingsPage() {
               />
               {configs.length === 0 ? (
                 <p className="text-sm text-gray-500">
-                  Нет сохранённых конфигураций.
+                  {t("settings.configs.empty")}
                 </p>
               ) : (
                 <div className="overflow-x-auto rounded-lg border border-gray-200">
                   <table className="w-full text-sm">
                     <thead className="bg-gray-100">
                       <tr>
-                        <th className="px-3 py-2 text-left">Название</th>
-                        <th className="px-3 py-2 text-left">Файл</th>
-                        <th className="px-3 py-2 text-left">Обновлён</th>
-                        <th className="px-3 py-2 text-left">Действия</th>
+                        <th className="px-3 py-2 text-left">{t("settings.configs.nameHeader")}</th>
+                        <th className="px-3 py-2 text-left">{t("settings.configs.fileHeader")}</th>
+                        <th className="px-3 py-2 text-left">{t("settings.configs.updatedHeader")}</th>
+                        <th className="px-3 py-2 text-left">{t("settings.configs.actionsHeader")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -351,7 +354,7 @@ export default function SettingsPage() {
                           <td className="px-3 py-2">{cfg.file}</td>
                           <td className="px-3 py-2">
                             {cfg.createdAt
-                              ? new Date(cfg.createdAt).toLocaleString()
+                              ? new Date(cfg.createdAt).toLocaleString(locale)
                               : "—"}
                           </td>
                           <td className="px-3 py-2">
@@ -361,14 +364,14 @@ export default function SettingsPage() {
                                 onClick={() => handleDownloadConfig(cfg.file)}
                                 className="flex items-center gap-1 px-2 py-1 border rounded text-sm hover:bg-gray-100"
                               >
-                                <Download size={14} /> Скачать
+                                <Download size={14} /> {t("settings.configs.download")}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteConfig(cfg.file)}
                                 className="flex items-center gap-1 px-2 py-1 border border-red-400 text-red-500 rounded text-sm hover:bg-red-50"
                               >
-                                <Trash size={14} /> Удалить
+                                <Trash size={14} /> {t("common.delete")}
                               </button>
                             </div>
                           </td>
@@ -383,7 +386,7 @@ export default function SettingsPage() {
 
           <section className="bg-white shadow-md rounded-lg p-4 border flex-1">
             <h2 className="text-xl font-semibold text-brand mb-4 flex items-center gap-2">
-              <LayoutDashboard size={18} /> Пользователи системы
+              <LayoutDashboard size={18} /> {t("settings.users.title")}
             </h2>
             <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="w-full text-sm">
@@ -434,7 +437,7 @@ export default function SettingsPage() {
                         colSpan={columns.length}
                         className="text-center py-4 text-gray-500"
                       >
-                        Нет пользователей
+                        {t("settings.users.empty")}
                       </td>
                     </tr>
                   )}
@@ -447,14 +450,14 @@ export default function SettingsPage() {
 
       <ConfirmModal
         isOpen={Boolean(confirmConfig)}
-        title="Удаление конфигурации"
+        title={t("settings.configs.confirmDeleteTitle")}
         description={
           confirmConfig
-            ? `Удалить конфигурацию «${confirmConfig.name}»? Действие нельзя отменить.`
+            ? t("settings.configs.confirmDeleteDescription", { name: confirmConfig.name })
             : undefined
         }
-        confirmText="Удалить"
-        cancelText="Отмена"
+        confirmText={t("common.delete")}
+        cancelText={t("common.cancel")}
         onConfirm={performDeleteConfig}
         onCancel={() => setConfirmConfig(null)}
       />

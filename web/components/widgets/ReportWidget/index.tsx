@@ -5,6 +5,8 @@ import { ReportConfig } from "@/lib/types";
 import { extractColumns } from "@/lib/report";
 import ReportViewer from "./ReportViewer";
 import ReportEditorForm from "./ReportEditorForm";
+import { useTranslation } from "@/components/i18n/LocaleProvider";
+import type { TranslateFn } from "@/components/i18n/LocaleProvider";
 
 type ReportWidgetProps = {
   data: Record<string, unknown>[];
@@ -15,28 +17,32 @@ type ReportWidgetProps = {
   isReadonly?: boolean;
 };
 
-function createDefaultConfig(columns: string[]): ReportConfig {
+function createDefaultConfig(columns: string[], t: TranslateFn): ReportConfig {
   const primaryColumn = columns[0] ?? "";
   return {
-    template: "Данные за период {{minDate}} — {{maxDate}}\nВсего записей: {{totalCount}}",
+    template: t("widgets.report.defaultTemplate", {
+      minDate: "{{minDate}}",
+      maxDate: "{{maxDate}}",
+      totalCount: "{{totalCount}}",
+    }),
     metrics: [
       {
         id: "minDate",
-        label: "Минимальная дата",
+        label: t("widgets.report.metrics.minDate"),
         field: primaryColumn,
         aggregation: "minDate",
         format: "date",
       },
       {
         id: "maxDate",
-        label: "Максимальная дата",
+        label: t("widgets.report.metrics.maxDate"),
         field: primaryColumn,
         aggregation: "maxDate",
         format: "date",
       },
       {
         id: "totalCount",
-        label: "Количество записей",
+        label: t("widgets.report.metrics.totalCount"),
         field: primaryColumn,
         aggregation: "count",
         format: "integer",
@@ -75,11 +81,12 @@ export default function ReportWidget({
   onConfigChange,
   isReadonly = false,
 }: ReportWidgetProps) {
+  const { t } = useTranslation();
   const columns = useMemo(() => extractColumns(data), [data]);
   const [mode, setMode] = useState<"view" | "edit">(config ? "view" : "edit");
   const [editingTitle, setEditingTitle] = useState(false);
   const [localTitle, setLocalTitle] = useState(title);
-  const [draftConfig, setDraftConfig] = useState<ReportConfig>(() => config ?? createDefaultConfig(columns));
+  const [draftConfig, setDraftConfig] = useState<ReportConfig>(() => config ?? createDefaultConfig(columns, t));
 
   useEffect(() => {
     setLocalTitle(title);
@@ -87,9 +94,9 @@ export default function ReportWidget({
 
   useEffect(() => {
     if (mode === "edit") {
-      setDraftConfig(config ?? createDefaultConfig(columns));
+      setDraftConfig(config ?? createDefaultConfig(columns, t));
     }
-  }, [mode, config, columns]);
+  }, [mode, config, columns, t]);
 
   const applyChanges = () => {
     const normalized = sanitizeConfig(draftConfig);
@@ -99,7 +106,7 @@ export default function ReportWidget({
   };
 
   const cancelChanges = () => {
-    setDraftConfig(config ?? createDefaultConfig(columns));
+    setDraftConfig(config ?? createDefaultConfig(columns, t));
     setMode("view");
   };
 
@@ -112,7 +119,7 @@ export default function ReportWidget({
             onChange={(e) => setLocalTitle(e.target.value)}
             onBlur={() => {
               setEditingTitle(false);
-              onTitleChange(localTitle.trim() || "Отчёт");
+              onTitleChange(localTitle.trim() || t("widgets.report.defaultTitle"));
             }}
             autoFocus
             className="font-semibold border rounded px-1 py-0.5 text-sm"
@@ -121,9 +128,9 @@ export default function ReportWidget({
           <span
             className={`font-semibold text-brand ${!isReadonly ? "cursor-text" : ""}`}
             onDoubleClick={() => !isReadonly && setEditingTitle(true)}
-            title={!isReadonly ? "Двойной клик для редактирования" : undefined}
+            title={!isReadonly ? t("widgets.report.buttons.renameHint") : undefined}
           >
-            {localTitle || "Отчёт"}
+            {localTitle || t("widgets.report.defaultTitle")}
           </span>
         )}
 
@@ -139,14 +146,14 @@ export default function ReportWidget({
               }}
               className="text-sm border px-2 py-1 rounded"
             >
-              {mode === "view" ? "Редактировать" : "Сохранить"}
+              {mode === "view" ? t("widgets.report.buttons.edit") : t("widgets.report.buttons.save")}
             </button>
             {mode === "edit" && (
               <button
                 onClick={cancelChanges}
                 className="text-sm border px-2 py-1 rounded"
               >
-                Отмена
+                {t("widgets.report.buttons.cancel")}
               </button>
             )}
             <span className="drag-handle cursor-move px-2 relative before:content-['⋮'] before:absolute before:left-[2px] before:top-0">

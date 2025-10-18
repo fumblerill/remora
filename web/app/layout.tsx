@@ -1,23 +1,29 @@
 import "./globals.css";
+import { cookies } from "next/headers";
 import LayoutWrapper from "../components/layout/LayoutWrapper";
 import ClientProviders from "../components/layout/ClientProviders";
+import { DEFAULT_LOCALE, Locale, isLocale } from "@/lib/i18n/dictionaries";
 
 export const metadata = {
   title: "Remora",
   description: "Self-hosted pivot table generator",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = await cookies();
+  const cookieLocale = cookieStore.get("remora_locale")?.value;
+  const initialLocale: Locale = isLocale(cookieLocale) ? (cookieLocale as Locale) : DEFAULT_LOCALE;
+
   return (
-    <html lang="ru">
+    <html lang={initialLocale}>
       <body className="flex h-screen bg-gray-50 text-gray-900 overflow-x-hidden">
-        <LayoutWrapper>
-          <ClientProviders>{children}</ClientProviders>
-        </LayoutWrapper>
+        <ClientProviders initialLocale={initialLocale}>
+          <LayoutWrapper>{children}</LayoutWrapper>
+        </ClientProviders>
       </body>
     </html>
   );

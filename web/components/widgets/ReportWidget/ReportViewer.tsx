@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ReportConfig } from "@/lib/types";
 import { evaluateReport } from "@/lib/report";
+import { useTranslation } from "@/components/i18n/LocaleProvider";
 
 type ReportViewerProps = {
   config: ReportConfig | null;
@@ -12,6 +13,7 @@ type ReportViewerProps = {
 export default function ReportViewer({ config, data }: ReportViewerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [fontSize, setFontSize] = useState(14);
+  const { t } = useTranslation();
 
   const { rendered, values } = useMemo(() => {
     if (!config || !data) return { rendered: "", values: {} };
@@ -35,12 +37,18 @@ export default function ReportViewer({ config, data }: ReportViewerProps) {
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) return;
-      const width =
-        (entry.contentBoxSize &&
-          (Array.isArray(entry.contentBoxSize)
-            ? entry.contentBoxSize[0]?.inlineSize
-            : entry.contentBoxSize.inlineSize)) ||
-        entry.contentRect.width;
+      let width = entry.contentRect.width;
+      const boxSize = entry.contentBoxSize;
+      if (boxSize) {
+        if (Array.isArray(boxSize)) {
+          width = boxSize[0]?.inlineSize ?? width;
+        } else {
+          const contentBox = boxSize as unknown as ResizeObserverSize;
+          if (typeof contentBox?.inlineSize === "number") {
+            width = contentBox.inlineSize;
+          }
+        }
+      }
 
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => updateSize(width));
@@ -57,7 +65,7 @@ export default function ReportViewer({ config, data }: ReportViewerProps) {
   if (!config) {
     return (
       <div className="border border-dashed border-gray-300 rounded-lg p-4 text-sm text-gray-500">
-        Отчёт не настроен. Добавьте метрики, чтобы отображать сводку.
+        {t("widgets.report.viewer.notConfigured")}
       </div>
     );
   }
@@ -84,12 +92,12 @@ export default function ReportViewer({ config, data }: ReportViewerProps) {
       >
         {rendered || (
           <span className="text-gray-500">
-            Шаблон пустой. Используйте поля метрик, например {"{{total}}"}.
+            {t("widgets.report.viewer.emptyTemplate", { example: "{{total}}" })}
           </span>
         )}
       </div>
       <details className="mt-5 text-xs text-gray-400 select-text">
-        <summary className="cursor-pointer">Показать значения метрик</summary>
+        <summary className="cursor-pointer">{t("widgets.report.viewer.showValues")}</summary>
         <ul className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
           {Object.entries(values).map(([id, value]) => (
             <li key={id} className="font-mono bg-white/80 px-2 py-1 rounded border text-gray-600">

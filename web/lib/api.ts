@@ -9,7 +9,7 @@ export async function uploadFile(
     body: formData,
   });
 
-  if (!res.ok) throw new Error("Ошибка загрузки файла");
+  if (!res.ok) throw new Error("Failed to upload file");
 
   return res.json();
 }
@@ -39,7 +39,7 @@ export async function exportTable({
   });
 
   if (!res.ok) {
-    throw new Error("Не удалось сформировать файл");
+    throw new Error("Failed to generate file");
   }
 
   return await res.blob();

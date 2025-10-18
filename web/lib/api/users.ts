@@ -9,7 +9,7 @@ async function apiFetch(url: string, options: RequestInit = {}) {
   });
 
   if (res.status === 401) {
-    console.warn("401 Unauthorized — редирект на /login");
+    console.warn("401 Unauthorized — redirecting to /login");
     window.location.href = "/login";
     return Promise.reject("Unauthorized");
   }
@@ -22,11 +22,11 @@ export async function fetchUsers(): Promise<any[]> {
   try {
     const res = await apiFetch(`/api/users/list`);
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Ошибка загрузки пользователей");
+    if (!res.ok) throw new Error(data.error || "Failed to load users");
     return data.users;
   } catch (err) {
     console.error("fetchUsers error:", err);
-    errorToast("Ошибка соединения с сервером");
+    errorToast("Server connection error");
     return [];
   }
 }
@@ -35,12 +35,12 @@ export async function fetchUsers(): Promise<any[]> {
 export async function fetchConfigs(): Promise<any[]> {
   try {
     const res = await fetch("/api/list-dashboards", { cache: "no-store" });
-    if (!res.ok) throw new Error("Не удалось загрузить конфиги");
+    if (!res.ok) throw new Error("Failed to load dashboards");
     const data = await res.json();
     return data.configs ?? [];
   } catch (err) {
     console.error("fetchConfigs error:", err);
-    errorToast("Ошибка загрузки списка дашбордов");
+    errorToast("Failed to load dashboard list");
     return [];
   }
 }
@@ -57,11 +57,11 @@ export async function createUser(login: string, password: string, role: string) 
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    successToast("Пользователь создан");
+    successToast("User created");
     return true;
   } catch (err) {
     console.error("createUser error:", err);
-    errorToast("Ошибка при создании пользователя");
+    errorToast("Failed to create user");
     return false;
   }
 }
@@ -78,11 +78,11 @@ export async function updateRole(id: number, role: string) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    successToast("Роль обновлена");
+    successToast("Role updated");
     return true;
   } catch (err) {
     console.error("updateRole error:", err);
-    errorToast("Ошибка обновления роли");
+    errorToast("Failed to update role");
     return false;
   }
 }
@@ -99,11 +99,11 @@ export async function updateDashboards(id: number, dashboards: string[]) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    successToast("Дашборды обновлены");
+    successToast("Dashboards updated");
     return true;
   } catch (err) {
     console.error("updateDashboards error:", err);
-    errorToast("Ошибка обновления дашбордов");
+    errorToast("Failed to update dashboards");
     return false;
   }
 }
@@ -118,11 +118,11 @@ export async function deleteUser(id: number) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
 
-    successToast("Пользователь удалён");
+    successToast("User deleted");
     return true;
   } catch (err) {
     console.error("deleteUser error:", err);
-    errorToast("Ошибка удаления пользователя");
+    errorToast("Failed to delete user");
     return false;
   }
 }

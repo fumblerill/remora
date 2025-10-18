@@ -8,9 +8,11 @@ import { Upload } from "lucide-react";
 import FileUploadModal from "@/components/ui/FileUploadModal";
 import { errorToast, successToast } from "@/lib/toast";
 import type { Widget } from "@/components/widgets/hooks/WidgetContainer";
+import { useTranslation } from "@/components/i18n/LocaleProvider";
 
 export default function ViewerPage() {
   const { name } = useParams<{ name: string }>();
+  const { t } = useTranslation();
 
   const [widgets, setWidgets] = useState<Widget[]>([]);
   const [data, setData] = useState<any[] | null>(null);
@@ -23,10 +25,10 @@ export default function ViewerPage() {
         const res = await fetch(`/api/dashboard/${name}?ts=${Date.now()}`, {
           cache: "no-store",
         });
-        if (!res.ok) throw new Error("Не удалось загрузить шаблон");
+        if (!res.ok) throw new Error("Failed to load dashboard template");
         const dashboard = await res.json();
 
-        if (!dashboard.widgets) throw new Error("Некорректный формат JSON");
+        if (!dashboard.widgets) throw new Error("Invalid dashboard JSON");
 
         const normalizedWidgets: Widget[] = dashboard.widgets.map((widget: Widget & { config?: any }) =>
           widget.type === "report"
@@ -34,7 +36,7 @@ export default function ViewerPage() {
                 ...widget,
                 config:
                   widget.config ?? {
-                    title: widget.title ?? "Отчёт",
+                    title: widget.title ?? t("widgets.report.defaultTitle"),
                     template: "",
                     metrics: [],
                   },
@@ -50,7 +52,7 @@ export default function ViewerPage() {
           normalizedWidgets.push({
             id: reportId,
             type: "report",
-            title: dashboard.report.title ?? "Отчёт",
+            title: dashboard.report.title ?? t("widgets.report.defaultTitle"),
             layout: {
               i: reportId,
               x,
@@ -70,12 +72,12 @@ export default function ViewerPage() {
         setDashboardName(dashboard.name || "");
       } catch (err) {
         console.error(err);
-        errorToast("Ошибка загрузки шаблона дашборда");
+        errorToast(t("viewer.loadError"));
       }
     }
 
     loadDashboard();
-  }, [name]);
+  }, [name, t]);
 
   return (
     <div className="flex flex-col h-full">
@@ -88,7 +90,7 @@ export default function ViewerPage() {
 
           <aside className="sticky top-20 z-10 w-64 bg-white shadow-md rounded-lg p-4 flex flex-col gap-3 border h-fit">
             <h2 className="font-semibold text-lg text-brand mb-2">
-              {dashboardName || "Загрузка..."}
+              {dashboardName || t("common.loading")}
             </h2>
 
             <button
@@ -96,12 +98,12 @@ export default function ViewerPage() {
               className="flex items-center gap-2 px-3 py-2 border border-brand text-brand rounded hover:bg-brand hover:text-white transition"
             >
               <Upload size={16} />
-              Загрузить данные
+              {t("viewer.uploadButton")}
             </button>
 
             {!data && (
               <p className="text-sm text-gray-500">
-                Загрузите свой файл (CSV/XLSX), чтобы построить аналитику.
+                {t("viewer.emptyHint")}
               </p>
             )}
           </aside>
@@ -112,7 +114,7 @@ export default function ViewerPage() {
             <Configurator widgets={widgets} data={data} setWidgets={setWidgets} isReadonly />
           ) : (
             <div className="flex items-center justify-center h-full text-gray-400 text-lg">
-              Ожидание данных...
+              {t("viewer.waiting")}
             </div>
           )}
         </main>
@@ -123,7 +125,7 @@ export default function ViewerPage() {
         onClose={() => setFileModal(false)}
         onUploadComplete={(uploaded) => {
           setData(uploaded);
-          successToast("Файл успешно загружен");
+          successToast(t("viewer.uploadSuccess"));
         }}
       />
     </div>

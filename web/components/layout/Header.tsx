@@ -4,18 +4,21 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUserRole } from "@/lib/useUserRole";
 import { useState } from "react";
+import { useTranslation } from "@/components/i18n/LocaleProvider";
+import LocaleSwitcher from "@/components/i18n/LocaleSwitcher";
 
 export default function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { role, loading, refresh } = useUserRole();
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const { t } = useTranslation();
 
-  let sectionName = "Главная";
-  if (pathname.startsWith("/admin")) sectionName = "Админ-панель";
-  if (pathname.startsWith("/login")) sectionName = "Авторизация";
-  if (pathname.startsWith("/configurator")) sectionName = "Конфигуратор";
-  if (pathname.startsWith("/settings")) sectionName = "Настройки";
+  let sectionName = t("header.sections.home");
+  if (pathname.startsWith("/admin")) sectionName = t("header.sections.admin");
+  if (pathname.startsWith("/login")) sectionName = t("header.sections.login");
+  if (pathname.startsWith("/configurator")) sectionName = t("header.sections.configurator");
+  if (pathname.startsWith("/settings")) sectionName = t("header.sections.settings");
 
   const isAdmin = role === "Admin" || role === "SuperAdmin";
 
@@ -55,19 +58,20 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-3">
+        <LocaleSwitcher />
         {isAdmin && (
           <>
             <Link
               href="/settings"
               className="border border-white text-white px-3 py-1.5 rounded-lg hover:bg-white/20 transition"
             >
-              Настройки
+              {t("header.links.settings")}
             </Link>
             <Link
               href="/configurator"
               className="border border-white text-white px-3 py-1.5 rounded-lg hover:bg-white/20 transition"
             >
-              Конфигуратор
+              {t("header.links.configurator")}
             </Link>
           </>
         )}
@@ -77,7 +81,7 @@ export default function Header() {
           disabled={logoutLoading}
           className="border border-white text-white px-3 py-1.5 rounded-lg hover:bg-white/20 transition disabled:opacity-60"
         >
-          {logoutLoading ? "Выходим..." : "Выйти"}
+          {logoutLoading ? t("header.logout.loading") : t("header.logout.default")}
         </button>
       </div>
     </header>

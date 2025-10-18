@@ -2,12 +2,19 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/components/i18n/LocaleProvider";
+
+type StatusState = {
+  message: string;
+  tone: "success" | "error";
+} | null;
 
 export default function SetupPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<StatusState>(null);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,14 +33,17 @@ export default function SetupPage() {
       setLoading(false);
 
       if (res.ok) {
-        setStatus("✅ SuperAdmin создан успешно");
+        setStatus({ message: t("setup.status.success"), tone: "success" });
         setTimeout(() => router.push("/login"), 700);
       } else {
-        setStatus(data.error || "Ошибка инициализации");
+        setStatus({
+          message: data.error || t("setup.status.failure"),
+          tone: "error",
+        });
       }
     } catch (err) {
       console.error("Setup failed:", err);
-      setStatus("Ошибка соединения с сервером");
+      setStatus({ message: t("setup.status.connection"), tone: "error" });
       setLoading(false);
     }
   };
@@ -42,14 +52,14 @@ export default function SetupPage() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
       <div className="w-full max-w-md bg-white shadow-md rounded-lg p-8">
         <h1 className="text-2xl font-bold text-center mb-6 text-brand">
-          Первичная настройка Remora
+          {t("setup.title")}
         </h1>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input
             value={login}
             onChange={(e) => setLogin(e.target.value)}
-            placeholder="Логин"
+            placeholder={t("setup.loginPlaceholder")}
             className="border px-3 py-2 rounded focus:ring-2 focus:ring-brand outline-none"
             autoFocus
           />
@@ -57,7 +67,7 @@ export default function SetupPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             type="password"
-            placeholder="Пароль"
+            placeholder={t("setup.passwordPlaceholder")}
             className="border px-3 py-2 rounded focus:ring-2 focus:ring-brand outline-none"
           />
           <button
@@ -65,17 +75,17 @@ export default function SetupPage() {
             disabled={loading}
             className="bg-brand text-white py-2 rounded-lg hover:bg-brand/90 transition disabled:opacity-60"
           >
-            {loading ? "Создаём..." : "Создать SuperAdmin"}
+            {loading ? t("setup.submitLoading") : t("setup.submitIdle")}
           </button>
         </form>
 
         {status && (
           <p
             className={`mt-4 text-center text-sm ${
-              status.includes("Ошибка") ? "text-red-500" : "text-gray-600"
+              status.tone === "error" ? "text-red-500" : "text-gray-600"
             }`}
           >
-            {status}
+            {status.message}
           </p>
         )}
       </div>

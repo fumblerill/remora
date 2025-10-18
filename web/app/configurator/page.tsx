@@ -8,6 +8,7 @@ import { Upload, Table, BarChart3, Save, FolderOpen, FileText } from "lucide-rea
 import FileUploadModal from "@/components/ui/FileUploadModal";
 import ConfigSelectModal from "@/components/ui/ConfigSelectModal";
 import { errorToast, successToast } from "@/lib/toast";
+import { useTranslation } from "@/components/i18n/LocaleProvider";
 
 type Widget = {
   id: string;
@@ -23,14 +24,15 @@ export default function ConfiguratorPage() {
   const [isFileModal, setFileModal] = useState(false);
   const [isConfigModal, setConfigModal] = useState(false);
   const [dashboardName, setDashboardName] = useState("");
+  const { t } = useTranslation();
 
   const addWidget = (type: Widget["type"]) => {
     if ((type === "table" || type === "report") && !data) {
-      errorToast("Сначала загрузите файл");
+      errorToast(t("configurator.toasts.uploadRequired"));
       return;
     }
     if (type === "report" && widgets.some((widget) => widget.type === "report")) {
-      errorToast("Отчёт уже добавлен");
+      errorToast(t("configurator.toasts.reportExists"));
       return;
     }
 
@@ -55,7 +57,7 @@ export default function ConfiguratorPage() {
           maxW: 12,
           maxH: 18,
         },
-        title: type === "report" ? "Отчёт" : undefined,
+        title: type === "report" ? t("widgets.report.defaultTitle") : undefined,
         config: type === "report" ? null : undefined,
       },
     ]);
@@ -68,17 +70,17 @@ export default function ConfiguratorPage() {
       const res = await fetch(`/api/dashboard/${cleanName}?ts=${Date.now()}`, {
         cache: "no-store",
       });
-      if (!res.ok) throw new Error("Не удалось загрузить файл");
+      if (!res.ok) throw new Error("Failed to load dashboard");
       const dashboard = await res.json();
 
-      if (!dashboard.widgets) throw new Error("Некорректный формат JSON");
+      if (!dashboard.widgets) throw new Error("Invalid dashboard JSON");
       const normalizedWidgets = dashboard.widgets.map((widget: any) =>
         widget.type === "report"
           ? {
               ...widget,
               config:
                 widget.config ?? {
-                  title: widget.title ?? "Отчёт",
+                  title: widget.title ?? t("widgets.report.defaultTitle"),
                   template: "",
                   metrics: [],
                 },
@@ -94,7 +96,7 @@ export default function ConfiguratorPage() {
         normalizedWidgets.push({
           id: reportId,
           type: "report",
-          title: dashboard.report.title ?? "Отчёт",
+          title: dashboard.report.title ?? t("widgets.report.defaultTitle"),
           layout: {
             i: reportId,
             x,
@@ -112,17 +114,17 @@ export default function ConfiguratorPage() {
 
       setWidgets(normalizedWidgets);
       setDashboardName(dashboard.name || "");
-      successToast(`Загружен дашборд: ${dashboard.name}`);
+      successToast(t("configurator.toasts.dashboardLoaded", { name: dashboard.name }));
     } catch (err) {
       console.error(err);
-      errorToast("Ошибка загрузки дашборда");
+      errorToast(t("configurator.toasts.loadError"));
     }
   };
 
   // 💾 Сохранение дашборда
   const saveDashboard = async () => {
     if (!dashboardName.trim()) {
-      errorToast("Введите имя дашборда");
+      errorToast(t("configurator.toasts.nameRequired"));
       return;
     }
 
@@ -137,12 +139,12 @@ export default function ConfiguratorPage() {
       });
 
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || "Ошибка при сохранении");
+      if (!res.ok) throw new Error(result.error || "Failed to save dashboard");
 
-      successToast(`Дашборд сохранён: ${result.file}`);
+      successToast(t("configurator.toasts.saveSuccess", { file: result.file }));
     } catch (err) {
       console.error("Ошибка сохранения:", err);
-      errorToast("Не удалось сохранить дашборд");
+      errorToast(t("configurator.toasts.saveError"));
     }
   };
 
@@ -160,7 +162,7 @@ export default function ConfiguratorPage() {
           <aside className="sticky top-20 z-10 w-64 bg-white shadow-md rounded-lg p-4 flex flex-col gap-3 border h-fit">
             <input
               type="text"
-              placeholder="Имя дашборда"
+              placeholder={t("configurator.placeholder.dashboardName")}
               value={dashboardName}
               onChange={(e) => setDashboardName(e.target.value)}
               className="font-semibold border border-brand text-brand placeholder-brand rounded px-2 py-1 text-sm mb-2"
@@ -171,7 +173,7 @@ export default function ConfiguratorPage() {
               className="flex items-center gap-2 px-3 py-2 border border-brand text-brand rounded hover:bg-brand hover:text-white transition"
             >
               <Upload size={16} />
-              Загрузить файл
+              {t("configurator.buttons.uploadFile")}
             </button>
 
             <button
@@ -179,7 +181,7 @@ export default function ConfiguratorPage() {
               className="flex items-center gap-2 px-3 py-2 border border-brand text-brand rounded hover:bg-brand hover:text-white transition"
             >
               <Table size={16} />
-              Добавить таблицу
+              {t("configurator.buttons.addTable")}
             </button>
 
             <button
@@ -187,7 +189,7 @@ export default function ConfiguratorPage() {
               className="flex items-center gap-2 px-3 py-2 border border-brand text-brand rounded hover:bg-brand hover:text-white transition"
             >
               <BarChart3 size={16} />
-              Добавить график
+              {t("configurator.buttons.addChart")}
             </button>
 
             <button
@@ -195,7 +197,7 @@ export default function ConfiguratorPage() {
               className="flex items-center gap-2 px-3 py-2 border border-brand text-brand rounded hover:bg-brand hover:text-white transition"
             >
               <FileText size={16} />
-              Добавить отчёт
+              {t("configurator.buttons.addReport")}
             </button>
 
             <button
@@ -203,7 +205,7 @@ export default function ConfiguratorPage() {
               className="flex items-center gap-2 px-3 py-2 border border-green-600 text-green-600 rounded hover:bg-green-600 hover:text-white transition"
             >
               <Save size={16} />
-              Сохранить
+              {t("configurator.buttons.save")}
             </button>
 
             <button
@@ -211,7 +213,7 @@ export default function ConfiguratorPage() {
               className="flex text-left items-center gap-2 px-3 py-2 border border-brand text-brand rounded hover:bg-brand hover:text-white transition"
             >
               <FolderOpen size={16} />
-              Конфигурации
+              {t("configurator.buttons.openConfigs")}
             </button>
           </aside>
         </div>
@@ -228,7 +230,7 @@ export default function ConfiguratorPage() {
         onClose={() => setFileModal(false)}
         onUploadComplete={(uploaded) => {
           setData(uploaded);
-          successToast("Файл успешно загружен");
+          successToast(t("configurator.toasts.fileUploaded"));
         }}
       />
 

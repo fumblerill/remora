@@ -5,6 +5,7 @@ import { Trash2 } from "lucide-react";
 import Modal from "./Modal";
 import { errorToast, successToast } from "@/lib/toast";
 import ConfirmModal from "./ConfirmModal";
+import { useTranslation } from "@/components/i18n/LocaleProvider";
 
 type ConfigItem = { name: string; file: string; createdAt: string };
 
@@ -23,6 +24,7 @@ export default function ConfigSelectModal({
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<ConfigItem | null>(null);
+  const { t, locale } = useTranslation();
 
   const loadConfigs = useCallback(async () => {
     try {
@@ -30,17 +32,17 @@ export default function ConfigSelectModal({
       const res = await fetch("/api/list-dashboards?ts=" + Date.now(), {
         cache: "no-store",
       });
-      if (!res.ok) throw new Error("Не удалось загрузить список конфигов");
+      if (!res.ok) throw new Error("Failed to load configuration list");
       const json = await res.json();
       setConfigs(json.configs ?? []);
     } catch (err) {
       console.error(err);
-      errorToast("Не удалось загрузить конфигурации");
+      errorToast(t("configSelect.toastLoadError"));
       setConfigs([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (isOpen) {
@@ -59,15 +61,15 @@ export default function ConfigSelectModal({
 
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        throw new Error(payload.error || "Ошибка удаления");
+        throw new Error(payload.error || "Failed to delete configuration");
       }
 
-      successToast(`Конфигурация «${name}» удалена`);
+      successToast(t("configSelect.toastDeleteSuccess", { name }));
       setConfigs((prev) => prev.filter((cfg) => cfg.file !== file));
       setConfirmTarget(null);
     } catch (err) {
       console.error("Delete config failed:", err);
-      errorToast("Не удалось удалить конфигурацию");
+      errorToast(t("configSelect.toastDeleteError"));
     } finally {
       setDeleting(null);
     }
@@ -75,13 +77,13 @@ export default function ConfigSelectModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <h2 className="text-lg font-semibold mb-4">Выберите конфигурацию</h2>
+      <h2 className="text-lg font-semibold mb-4">{t("configSelect.title")}</h2>
 
       {loading ? (
-        <p className="text-gray-500 text-center">Загрузка...</p>
+        <p className="text-gray-500 text-center">{t("common.loading")}</p>
       ) : configs.length === 0 ? (
         <p className="text-gray-500 text-center">
-          Сохранённые конфигурации отсутствуют
+          {t("configSelect.empty")}
         </p>
       ) : (
         <div className="flex flex-col gap-2">
@@ -100,14 +102,14 @@ export default function ConfigSelectModal({
               >
                 <div className="font-medium">{cfg.name}</div>
                 <div className="text-xs text-gray-500">
-                  {new Date(cfg.createdAt).toLocaleString()}
+                  {new Date(cfg.createdAt).toLocaleString(locale)}
                 </div>
               </button>
 
               <button
                 onClick={() => setConfirmTarget(cfg)}
                 className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded"
-                title="Удалить конфигурацию"
+                title={t("configSelect.deleteTooltip")}
                 disabled={deleting === cfg.file}
                 type="button"
               >
@@ -120,13 +122,13 @@ export default function ConfigSelectModal({
 
       <ConfirmModal
         isOpen={Boolean(confirmTarget)}
-        title="Удаление конфигурации"
+        title={t("configSelect.confirm.title")}
         description={
           confirmTarget
-            ? `Удалить конфигурацию «${confirmTarget.name}»? Действие нельзя отменить.`
+            ? t("configSelect.confirm.description", { name: confirmTarget.name })
             : ""
         }
-        confirmText="Удалить"
+        confirmText={t("common.delete")}
         onCancel={() => {
           if (!deleting) {
             setConfirmTarget(null);
@@ -148,7 +150,7 @@ export default function ConfigSelectModal({
           className="text-sm border px-3 py-1 rounded hover:bg-gray-100"
           type="button"
         >
-          Отмена
+          {t("common.cancel")}
         </button>
       </div>
     </Modal>
