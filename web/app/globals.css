@@ -21,7 +21,7 @@ html, body {
 
 /* anti-select при drag */
 .react-grid-item.react-draggable-dragging,
-.react-grid-item.react-draggable {
+.react-grid-item .drag-handle {
   user-select: none;
 }
 
@@ -38,5 +38,4 @@ html, body {
   border-radius: 6px;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
-
 
