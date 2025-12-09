@@ -64,6 +64,7 @@ export const dictionaries: Dictionaries = {
         nameRequired: "Введите имя дашборда",
         saveSuccess: "Дашборд сохранён: {{file}}",
         saveError: "Не удалось сохранить дашборд",
+        autoRestore: "Восстановлен черновик от {{time}}",
       },
     },
     configSelect: {
@@ -99,6 +100,18 @@ export const dictionaries: Dictionaries = {
         onlySuperHint: "Только SuperAdmin может создавать пользователей",
         importButton: "Импорт JSON",
         importing: "Импорт...",
+      },
+      preferences: {
+        title: "Локальные настройки",
+        description: "Эти параметры сохраняются в браузере и помогают восстановить изменения после сбоя.",
+        autoSave: {
+          label: "Автосохранение дашборда",
+          subtitle: "Сохранять черновик локально и восстанавливать его, если вкладка перезагрузится.",
+          enabled: "Автосохранение включено",
+          disabled: "Автосохранение выключено",
+          enabledHint: "Черновики будут автоматически сохраняться в этом браузере.",
+          disabledHint: "Черновики не сохраняются автоматически.",
+        },
       },
       configs: {
         title: "Конфигурации дашбордов",
@@ -314,6 +327,7 @@ export const dictionaries: Dictionaries = {
         nameRequired: "Enter a dashboard name",
         saveSuccess: "Dashboard saved: {{file}}",
         saveError: "Failed to save dashboard",
+        autoRestore: "Recovered autosaved draft from {{time}}",
       },
     },
     configSelect: {
@@ -349,6 +363,18 @@ export const dictionaries: Dictionaries = {
         onlySuperHint: "Only SuperAdmin can create users",
         importButton: "Import JSON",
         importing: "Importing...",
+      },
+      preferences: {
+        title: "Local preferences",
+        description: "These options are stored in your browser to keep work safe during failures.",
+        autoSave: {
+          label: "Dashboard autosave",
+          subtitle: "Store drafts locally and restore them if the tab crashes.",
+          enabled: "Autosave enabled",
+          disabled: "Autosave disabled",
+          enabledHint: "Drafts will automatically save in this browser.",
+          disabledHint: "Drafts will not be saved automatically.",
+        },
       },
       configs: {
         title: "Dashboard configurations",

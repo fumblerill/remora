@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Configurator from "@/components/configurator/Configurator";
@@ -10,6 +10,13 @@ import FileUploadModal from "@/components/ui/FileUploadModal";
 import ConfigSelectModal from "@/components/ui/ConfigSelectModal";
 import { errorToast, successToast } from "@/lib/toast";
 import { useTranslation } from "@/components/i18n/LocaleProvider";
+import {
+  clearAutoSaveSnapshot,
+  getAutoSavePreference,
+  loadAutoSaveSnapshot,
+  saveAutoSaveSnapshot,
+  subscribeToAutoSavePreference,
+} from "@/lib/settings";
 
 type Widget = {
   id: string;
@@ -25,7 +32,46 @@ export default function ConfiguratorPage() {
   const [isFileModal, setFileModal] = useState(false);
   const [isConfigModal, setConfigModal] = useState(false);
   const [dashboardName, setDashboardName] = useState("");
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
+  const restoreAttemptedRef = useRef(false);
+
+  useEffect(() => {
+    setAutoSaveEnabled(getAutoSavePreference());
+    const unsubscribe = subscribeToAutoSavePreference(setAutoSaveEnabled);
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!autoSaveEnabled) return;
+    if (restoreAttemptedRef.current) return;
+    if (widgets.length || data) {
+      restoreAttemptedRef.current = true;
+      return;
+    }
+    const snapshot = loadAutoSaveSnapshot();
+    restoreAttemptedRef.current = true;
+    if (!snapshot) return;
+    setDashboardName(snapshot.dashboardName || "");
+    setWidgets(snapshot.widgets || []);
+    setData(snapshot.data ?? null);
+    const localeCode = locale === "en" ? "en-US" : "ru-RU";
+    const timeLabel = new Date(snapshot.updatedAt).toLocaleString(localeCode);
+    successToast(t("configurator.toasts.autoRestore", { time: timeLabel }));
+  }, [autoSaveEnabled, data, locale, t, widgets.length]);
+
+  useEffect(() => {
+    if (!autoSaveEnabled) return;
+    const handle = setTimeout(() => {
+      saveAutoSaveSnapshot({
+        dashboardName,
+        widgets,
+        data,
+        updatedAt: Date.now(),
+      });
+    }, 1000);
+    return () => clearTimeout(handle);
+  }, [autoSaveEnabled, dashboardName, widgets, data]);
 
   const addWidget = (type: Widget["type"]) => {
     if ((type === "table" || type === "report") && !data) {
@@ -143,6 +189,7 @@ export default function ConfiguratorPage() {
       if (!res.ok) throw new Error(result.error || "Failed to save dashboard");
 
       successToast(t("configurator.toasts.saveSuccess", { file: result.file }));
+      clearAutoSaveSnapshot();
     } catch (err) {
       console.error("Ошибка сохранения:", err);
       errorToast(t("configurator.toasts.saveError"));

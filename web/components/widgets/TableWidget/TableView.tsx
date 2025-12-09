@@ -314,6 +314,7 @@ function TanStackTable({
                   if (el) rowVirtualizer.measureElement(el);
                 }}
                 className="flex border-b min-w-max"
+                data-index={virtualRow.index}
                 style={{
                   position: "absolute",
                   top: virtualRow.start,

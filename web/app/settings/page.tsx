@@ -28,6 +28,11 @@ import DashboardSelectModal from "@/components/ui/DashboardSelectModal";
 import { successToast, errorToast } from "@/lib/toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { useTranslation } from "@/components/i18n/LocaleProvider";
+import {
+  getAutoSavePreference,
+  setAutoSavePreference,
+  subscribeToAutoSavePreference,
+} from "@/lib/settings";
 
 export default function SettingsPage() {
   const { role, loading: roleLoading } = useUserRole();
@@ -42,6 +47,7 @@ export default function SettingsPage() {
     handleDashboardsChange,
   } = useUsers();
   const { t, locale } = useTranslation();
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(false);
 
   const [creating, setCreating] = useState(false);
   const [dashboardModal, setDashboardModal] = useState<{
@@ -58,6 +64,12 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!roleLoading) loadAll();
   }, [roleLoading]);
+
+  useEffect(() => {
+    setAutoSaveEnabled(getAutoSavePreference());
+    const unsubscribe = subscribeToAutoSavePreference(setAutoSaveEnabled);
+    return unsubscribe;
+  }, []);
 
   const handleDownloadConfig = async (file: string) => {
     try {
@@ -188,6 +200,16 @@ export default function SettingsPage() {
     }
   };
 
+  const toggleAutoSave = () => {
+    const next = !autoSaveEnabled;
+    setAutoSavePreference(next);
+    successToast(
+      next
+        ? t("settings.preferences.autoSave.enabled")
+        : t("settings.preferences.autoSave.disabled"),
+    );
+  };
+
   const columns = useMemo<ColumnDef<any>[]>(
     () => [
       { header: "ID", accessorKey: "id" },
@@ -316,6 +338,43 @@ export default function SettingsPage() {
 
         {/* Main content */}
         <main className="flex-1 flex flex-col gap-6">
+          <section className="bg-white shadow-md rounded-lg p-4 border">
+            <h2 className="text-xl font-semibold text-brand mb-2">
+              {t("settings.preferences.title")}
+            </h2>
+            <p className="text-sm text-gray-500 mb-4">
+              {t("settings.preferences.description")}
+            </p>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="font-medium text-gray-900">
+                  {t("settings.preferences.autoSave.label")}
+                </p>
+                <p className="text-sm text-gray-500">
+                  {t("settings.preferences.autoSave.subtitle")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={toggleAutoSave}
+                className={`relative inline-flex h-6 w-12 flex-shrink-0 items-center rounded-full transition ${
+                  autoSaveEnabled ? "bg-brand" : "bg-gray-300"
+                }`}
+                aria-pressed={autoSaveEnabled}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${
+                    autoSaveEnabled ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">
+              {autoSaveEnabled
+                ? t("settings.preferences.autoSave.enabledHint")
+                : t("settings.preferences.autoSave.disabledHint")}
+            </p>
+          </section>
           {canManageConfigs && (
             <section className="bg-white shadow-md rounded-lg p-4 border">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
