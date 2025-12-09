@@ -198,6 +198,11 @@ export default function ChartEditor({
 
   const lastExternalRef = useRef<string | null>(JSON.stringify(localConfig));
   const lastEmittedRef = useRef<string>(JSON.stringify(localConfig));
+  const lastLocalSnapshotRef = useRef<string>(JSON.stringify(localConfig));
+
+  useEffect(() => {
+    lastLocalSnapshotRef.current = JSON.stringify(localConfig);
+  }, [localConfig]);
 
   useEffect(() => {
     const normalized = normalizeChartConfig(config, data, {
@@ -206,6 +211,12 @@ export default function ChartEditor({
     const serialized = JSON.stringify(normalized);
     if (lastExternalRef.current === serialized) return;
     lastExternalRef.current = serialized;
+    if (
+      lastLocalSnapshotRef.current === serialized ||
+      lastEmittedRef.current === serialized
+    ) {
+      return;
+    }
     setLocalConfig(normalized);
   }, [config, data]);
 

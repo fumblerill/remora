@@ -36,10 +36,15 @@ export default function ChartWidget({
   const [chartConfig, setChartConfig] = useState<ChartConfig>(normalizedConfig);
   const lastPropStringRef = useRef<string | null>(normalizedString);
   const lastEmittedRef = useRef<string>(normalizedString);
+  const lastLocalSnapshotRef = useRef<string>(normalizedString);
 
   const [mode, setMode] = useState<"view" | "edit">(config ? "view" : "edit");
   const [localTitle, setLocalTitle] = useState(title);
   const [editingTitle, setEditingTitle] = useState(false);
+
+  useEffect(() => {
+    lastLocalSnapshotRef.current = JSON.stringify(chartConfig);
+  }, [chartConfig]);
 
   // 🔄 уведомляем контейнер при изменении конфигурации
   useEffect(() => {
@@ -48,12 +53,13 @@ export default function ChartWidget({
     }
 
     lastPropStringRef.current = normalizedString;
-    setChartConfig((prev) => {
-      if (JSON.stringify(prev) === normalizedString) {
-        return prev;
-      }
-      return normalizedConfig;
-    });
+    if (
+      lastLocalSnapshotRef.current === normalizedString ||
+      lastEmittedRef.current === normalizedString
+    ) {
+      return;
+    }
+    setChartConfig(normalizedConfig);
   }, [normalizedConfig, normalizedString]);
 
   useEffect(() => {
