@@ -46,6 +46,14 @@ function formatValue(value: unknown, format?: ReportMetric["format"]): string {
       return new Date(String(value)).toLocaleDateString("ru-RU");
     case "datetime":
       return new Date(String(value)).toLocaleString("ru-RU");
+    case "percent": {
+      const num = Number(value);
+      if (!Number.isFinite(num)) return "—";
+      return `${num.toLocaleString("ru-RU", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      })}%`;
+    }
     default:
       return String(value);
   }
@@ -96,6 +104,12 @@ function computeMetric(metric: ReportMetric, rows: DatasetRow[]): string | numbe
     if (aggregation === "count") {
       return formatValue(rows.length, format);
     }
+    if (aggregation === "percent") {
+      if (!rows.length) return "—";
+      const conditionedRows = applyCondition(rows, metric);
+      const percent = (conditionedRows.length / rows.length) * 100;
+      return formatValue(percent, format ?? "percent");
+    }
     return "—";
   }
 
@@ -133,6 +147,18 @@ function computeMetric(metric: ReportMetric, rows: DatasetRow[]): string | numbe
       const comparator = aggregation === "minDate" ? Math.min : Math.max;
       const timestamp = comparator(...dates.map((date) => date.getTime()));
       return formatValue(new Date(timestamp), format ?? "date");
+    }
+    case "percent": {
+      const numeratorValues = values.map(coerceNumber).filter((n): n is number => n !== null);
+      if (!numeratorValues.length) return "—";
+      const numerator = numeratorValues.reduce((acc, num) => acc + num, 0);
+      const denominatorValues = rows
+        .map((row) => coerceNumber(row[field]))
+        .filter((n): n is number => n !== null);
+      const denominator = denominatorValues.reduce((acc, num) => acc + num, 0);
+      if (denominator === 0) return "—";
+      const percent = (numerator / denominator) * 100;
+      return formatValue(percent, format ?? "percent");
     }
     default:
       return "—";

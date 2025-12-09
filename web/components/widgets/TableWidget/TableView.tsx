@@ -12,9 +12,11 @@ import {
   SortingState,
   ColumnFiltersState,
   CellContext,
+  ColumnSizingState,
+  Header,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { useMemo, useState, useRef, useEffect } from "react";
+import { useMemo, useState, useRef, useEffect, type ReactNode } from "react";
 import { ArrowUp, ArrowDown } from "lucide-react";
 
 interface TableViewProps {
@@ -109,6 +111,9 @@ function TanStackTable({
     col: number;
   } | null>(null);
   const [isSelecting, setIsSelecting] = useState(false);
+  const [hasUserSizedColumns, setHasUserSizedColumns] = useState(false);
+  const autoSizingRef = useRef(false);
+  const lastAutoSignatureRef = useRef<string | null>(null);
 
   const table = useReactTable({
     data,
@@ -149,13 +154,76 @@ function TanStackTable({
     overscan: 10,
   });
 
-  const totalColumns = table.getAllLeafColumns().length;
+  const leafColumnSignature = table
+    .getAllLeafColumns()
+    .map((column) => column.id)
+    .join("|");
   const totalSize = table.getTotalSize();
-  const useDistributedWidth =
-    containerWidth > 0 && totalColumns > 0 && totalSize < containerWidth;
-  const distributedWidth = useDistributedWidth
-    ? containerWidth / totalColumns
-    : undefined;
+  const columnSizingState = table.getState().columnSizing;
+  const columnSizingSignature = useMemo(() => {
+    const entries = Object.entries(columnSizingState);
+    if (!entries.length) return "";
+    return entries
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([id, size]) => `${id}:${size}`)
+      .join("|");
+  }, [columnSizingState]);
+
+  useEffect(() => {
+    setHasUserSizedColumns(false);
+    lastAutoSignatureRef.current = null;
+    autoSizingRef.current = true;
+    table.resetColumnSizing();
+  }, [leafColumnSignature, table]);
+
+  useEffect(() => {
+    if (!columnSizingSignature) {
+      lastAutoSignatureRef.current = null;
+      autoSizingRef.current = false;
+      return;
+    }
+
+    if (autoSizingRef.current) {
+      lastAutoSignatureRef.current = columnSizingSignature;
+      autoSizingRef.current = false;
+      return;
+    }
+
+    lastAutoSignatureRef.current = null;
+    setHasUserSizedColumns(true);
+  }, [columnSizingSignature]);
+
+  useEffect(() => {
+    if (hasUserSizedColumns) return;
+    if (!containerWidth) return;
+    const columns = table.getAllLeafColumns();
+    if (!columns.length) return;
+
+    const currentTotalSize = table.getTotalSize();
+    const hasAutoSizing = lastAutoSignatureRef.current !== null;
+    const tolerance = 1;
+    const shouldStretch =
+      containerWidth > 0 && currentTotalSize + tolerance < containerWidth;
+    const shouldShrink =
+      hasAutoSizing && currentTotalSize - tolerance > containerWidth;
+
+    if (!shouldStretch && !shouldShrink) return;
+
+    const widthPerColumn = containerWidth / columns.length;
+    autoSizingRef.current = true;
+    table.setColumnSizing(() => {
+      const next: ColumnSizingState = {};
+      for (const column of columns) {
+        next[column.id] = widthPerColumn;
+      }
+      return next;
+    });
+  }, [
+    containerWidth,
+    hasUserSizedColumns,
+    table,
+    leafColumnSignature,
+  ]);
 
   return (
     <div
@@ -173,55 +241,58 @@ function TanStackTable({
             <div
               key={headerGroup.id}
               className="flex"
-              style={{ width: useDistributedWidth ? "100%" : undefined }}
             >
-              {headerGroup.headers.map((header) => (
-                <div
-                  key={header.id}
-                  className="border-r px-2 py-1 relative flex flex-col justify-between"
-                  style={{
-                    width: useDistributedWidth
-                      ? `${distributedWidth}px`
-                      : header.getSize(),
-                    flex: useDistributedWidth ? "1 1 0" : undefined,
-                  }}
-                >
-                  {/* название */}
+              {headerGroup.headers.map((header) => {
+                const headerContent = flexRender(
+                  header.column.columnDef.header,
+                  header.getContext(),
+                );
+                const headerTitle = getHeaderTitle(header, headerContent);
+
+                return (
                   <div
-                    onClick={header.column.getToggleSortingHandler()}
-                    className="cursor-pointer select-none flex items-center gap-1 truncate whitespace-nowrap overflow-hidden"
+                    key={header.id}
+                    className="border-r px-2 py-1 relative flex flex-col justify-between"
+                    style={{
+                      width: header.getSize(),
+                      minWidth: header.getSize(),
+                    }}
                   >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext(),
+                    {/* название */}
+                    <div
+                      onClick={header.column.getToggleSortingHandler()}
+                      className="cursor-pointer select-none flex items-center gap-1 truncate whitespace-nowrap overflow-hidden"
+                      title={headerTitle}
+                    >
+                      {headerContent}
+                      {{
+                        asc: <ArrowUp size={14} />,
+                        desc: <ArrowDown size={14} />,
+                      }[header.column.getIsSorted() as string] ?? null}
+                    </div>
+
+                    {/* фильтр */}
+                    {header.column.getCanFilter() && (
+                      <input
+                        type="text"
+                        value={(header.column.getFilterValue() as string) ?? ""}
+                        onChange={(e) =>
+                          header.column.setFilterValue(e.target.value)
+                        }
+                        placeholder="Фильтр..."
+                        className="w-full border rounded px-1 text-xs mt-1"
+                      />
                     )}
-                    {{
-                      asc: <ArrowUp size={14} />,
-                      desc: <ArrowDown size={14} />,
-                    }[header.column.getIsSorted() as string] ?? null}
-                  </div>
 
-                  {/* фильтр */}
-                  {header.column.getCanFilter() && (
-                    <input
-                      type="text"
-                      value={(header.column.getFilterValue() as string) ?? ""}
-                      onChange={(e) =>
-                        header.column.setFilterValue(e.target.value)
-                      }
-                      placeholder="Фильтр..."
-                      className="w-full border rounded px-1 text-xs mt-1"
+                    {/* ресайзер */}
+                    <div
+                      onMouseDown={header.getResizeHandler()}
+                      onTouchStart={header.getResizeHandler()}
+                      className="absolute top-0 right-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-blue-400"
                     />
-                  )}
-
-                  {/* ресайзер */}
-                  <div
-                    onMouseDown={header.getResizeHandler()}
-                    onTouchStart={header.getResizeHandler()}
-                    className="absolute top-0 right-0 h-full w-1 cursor-col-resize bg-transparent hover:bg-blue-400"
-                  />
-                </div>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -230,7 +301,7 @@ function TanStackTable({
         <div
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
-            width: useDistributedWidth ? "100%" : totalSize,
+            width: totalSize,
             position: "relative",
           }}
         >
@@ -268,10 +339,8 @@ function TanStackTable({
                         isSelected ? "bg-blue-100" : ""
                       }`}
                       style={{
-                        width: useDistributedWidth
-                          ? `${distributedWidth}px`
-                          : cell.column.getSize(),
-                        flex: useDistributedWidth ? "1 1 0" : undefined,
+                        width: cell.column.getSize(),
+                        minWidth: cell.column.getSize(),
                         userSelect: "none",
                       }}
                       onClick={() => {
@@ -324,6 +393,24 @@ function getSelectionBounds(
   const left = Math.min(start.col, end.col);
   const right = Math.max(start.col, end.col);
   return { top, bottom, left, right };
+}
+
+function getHeaderTitle(
+  header: Header<any, unknown>,
+  rendered: ReactNode,
+): string | undefined {
+  if (typeof rendered === "string") {
+    return rendered;
+  }
+
+  const rawHeader = header.column.columnDef.header;
+  if (typeof rawHeader === "string") {
+    return rawHeader;
+  }
+
+  return typeof header.column.id === "string"
+    ? header.column.id
+    : undefined;
 }
 
 function CellContent({ value }: { value: unknown }) {

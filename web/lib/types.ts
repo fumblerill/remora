@@ -47,9 +47,16 @@ export type ReportMetricAggregation =
   | "min"
   | "max"
   | "minDate"
-  | "maxDate";
+  | "maxDate"
+  | "percent";
 
-export type ReportMetricFormat = "number" | "integer" | "currency" | "date" | "datetime";
+export type ReportMetricFormat =
+  | "number"
+  | "integer"
+  | "currency"
+  | "date"
+  | "datetime"
+  | "percent";
 
 export type ReportMetricConditionOperator = "eq" | "neq" | "contains" | "startsWith" | "endsWith";
 

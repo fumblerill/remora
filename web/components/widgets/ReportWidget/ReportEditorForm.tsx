@@ -25,6 +25,7 @@ export default function ReportEditorForm({ value, columns, onChange }: ReportEdi
       { value: "max", label: t("widgets.report.aggregations.max") },
       { value: "minDate", label: t("widgets.report.aggregations.minDate") },
       { value: "maxDate", label: t("widgets.report.aggregations.maxDate") },
+      { value: "percent", label: t("widgets.report.aggregations.percent") },
     ],
     [t],
   );
@@ -36,6 +37,7 @@ export default function ReportEditorForm({ value, columns, onChange }: ReportEdi
       { value: "currency", label: t("widgets.report.formats.currency") },
       { value: "date", label: t("widgets.report.formats.date") },
       { value: "datetime", label: t("widgets.report.formats.datetime") },
+      { value: "percent", label: t("widgets.report.formats.percent") },
     ],
     [t],
   );

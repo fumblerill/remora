@@ -239,6 +239,7 @@ export const dictionaries: Dictionaries = {
           max: "Максимум",
           minDate: "Минимальная дата",
           maxDate: "Максимальная дата",
+          percent: "Проценты",
         },
         formats: {
           number: "Число (2 знака)",
@@ -246,6 +247,7 @@ export const dictionaries: Dictionaries = {
           currency: "Валюта",
           date: "Дата",
           datetime: "Дата и время",
+          percent: "Проценты",
         },
         operators: {
           eq: "Равно",
@@ -487,6 +489,7 @@ export const dictionaries: Dictionaries = {
           max: "Maximum",
           minDate: "Earliest date",
           maxDate: "Latest date",
+          percent: "Percent",
         },
         formats: {
           number: "Number (2 decimals)",
@@ -494,6 +497,7 @@ export const dictionaries: Dictionaries = {
           currency: "Currency",
           date: "Date",
           datetime: "Date & time",
+          percent: "Percent",
         },
         operators: {
           eq: "Equals",
