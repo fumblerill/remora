@@ -56,7 +56,7 @@ export default function TableView({
 
     const valueDefs: ColumnDef<any>[] = valueColumns.map((col) => ({
       accessorKey: col.key,
-      header: col.header,
+      header: cleanHeader(col.header),
       cell: (info: CellContext<any, unknown>) => (
         <CellContent value={info.getValue()} />
       ),
@@ -413,6 +413,23 @@ function getHeaderTitle(
     ? header.column.id
     : undefined;
 }
+
+function cleanHeader(raw: string): string {
+  if (!raw) return raw;
+
+  const [metricPart, rest] = raw.split("•").map(s => s.trim());
+
+  if (!rest) return raw;
+
+  const finalValue = rest.includes(":")
+    ? rest.split(":").at(-1)!.trim()
+    : rest;
+
+  return `${metricPart} → ${finalValue}`;
+}
+
+
+
 
 function CellContent({ value }: { value: unknown }) {
   const str = value === undefined || value === null ? "" : String(value);

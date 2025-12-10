@@ -8,7 +8,7 @@ module.exports = {
     extend: {
       colors: {
         brand: {
-          DEFAULT: "#2563eb",   // основной цвет Infera
+          DEFAULT: "#2563eb",   // основной цвет
           secondary: "#c86dd7", // акцентный цвет
         },
       },
