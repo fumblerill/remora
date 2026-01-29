@@ -70,7 +70,7 @@ const nextConfig: NextConfig = {
     return backendRewrites;
   },
   experimental: {
-    proxyClientMaxBodySize: '50mb',
+    middlewareClientMaxBodySize: '50mb',
   },
 };
 
