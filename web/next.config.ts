@@ -69,6 +69,11 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return backendRewrites;
   },
+  api: {
+    bodyParser: {
+      sizeLimit: "50mb",
+    },
+  },
 };
 
 export default nextConfig;
